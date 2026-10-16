@@ -1,0 +1,15 @@
+node_modules/
+mobile/dist/
+.data/
+.env
+*.env
+server.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+seed/*.json
+seed/translate/
+seed_media/
+mirror/
+.expo/

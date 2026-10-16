@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "Iddawela Foundation",
+    "slug": "iddawela",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "scheme": "iddawela",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.iddawela.foundation"
+    },
+    "android": {
+      "package": "com.iddawela.foundation"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "output": "single",
+      "name": "Iddawela Foundation",
+      "shortName": "Iddawela",
+      "themeColor": "#14110F",
+      "backgroundColor": "#F6EFE2",
+      "lang": "en"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}
