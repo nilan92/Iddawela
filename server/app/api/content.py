@@ -340,3 +340,11 @@ def home(user=Depends(current_user_optional), db: Session = Depends(get_db)):
     return dict(stats=stats(db), thirteen=thirteen, founders=founders, upcoming=[event_out(e, db) for e in upcoming],
                 recent_events=[event_out(e, db) for e in last], onthisday=on_this_day(user, db), causes=causes(db)[:4],
                 posts=posts(user, db)[:3], heritage_photos=hphotos)
+
+
+@r.get("/api/memorial-wall")
+def memorial_wall(user=Depends(current_user_optional), db: Session = Depends(get_db)):
+    g = graph(db)
+    out = [card(p, user, g) for p in g["people"].values() if deceased(p)]
+    out.sort(key=lambda c: (c["generation"] if c["generation"] is not None else 9, -(c["death_year"] or 0)))
+    return out

@@ -52,3 +52,6 @@ export { default as Gamepad2 } from 'lucide-react-native/icons/gamepad-2';
 export { default as Link2 } from 'lucide-react-native/icons/link-2';
 export { default as Maximize2 } from 'lucide-react-native/icons/maximize-2';
 export { default as Trash2 } from 'lucide-react-native/icons/trash';
+export { default as Pencil } from 'lucide-react-native/icons/pencil';
+export { default as Inbox } from 'lucide-react-native/icons/inbox';
+export { default as MessageCircle } from 'lucide-react-native/icons/message-circle';

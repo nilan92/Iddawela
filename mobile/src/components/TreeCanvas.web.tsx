@@ -104,7 +104,7 @@ const TreeCanvas = forwardRef<CanvasHandle, Props>(function TreeCanvas(p, ref) {
     .tc text{font-family:Inter,'Noto Sans Sinhala',sans-serif;user-select:none}
     .tc .nm{font-family:Fraunces,'Abhaya Libre',Georgia,serif}
     .tc[data-z=far] .lbl-d4,.tc[data-z=far] .lbl-d3{display:none}
-    .tc[data-z=far] .lbl-d2{font-size:30px}
+    .tc[data-z=far] .lbl-d2{display:none}
     .tc[data-z=mid] .lbl-d4{display:none}
     .tc .node{cursor:pointer;transition:opacity .35s}
     .tc .node:hover .ring{stroke:${C.gold};stroke-width:3}
@@ -177,12 +177,15 @@ const TreeCanvas = forwardRef<CanvasHandle, Props>(function TreeCanvas(p, ref) {
         <g key={'n' + q.id} className={'node' + (dimmed(n) ? ' dim' : '')} onClick={click(q.id)} role="button" aria-label={n.name_en}>
           {(sel || inPath) ? <circle cx={c.x} cy={c.y} r={r + 9} fill={C.gold} fillOpacity={0.25} /> : null}
           <clipPath id={'cp' + q.id}><circle cx={c.x} cy={c.y} r={r - 2} /></clipPath>
-          <circle className="ring" cx={c.x} cy={c.y} r={r} fill={n.deceased ? C.ink2 : C.paper} stroke={sel || inPath ? C.gold : col} strokeWidth={sel || inPath ? 4 : q.depth === 1 ? 3 : 2} />
+          <circle className="ring" cx={c.x} cy={c.y} r={r} fill={q.depth === 1 ? (n.deceased ? C.ink2 : C.paper) : col} fillOpacity={q.depth === 1 ? 1 : n.deceased ? 0.55 : 0.95} stroke={sel || inPath ? C.gold : q.depth === 1 ? col : 'rgba(246,239,226,.55)'} strokeWidth={sel || inPath ? 4 : q.depth === 1 ? 3 : 1.2} />
           {n.photo && r >= 11 ? <image href={n.photo} x={c.x - r} y={c.y - r} width={r * 2} height={r * 2} clipPath={`url(#cp${q.id})`} preserveAspectRatio="xMidYMid slice" /> : null}
           {q.depth === 1 && !n.photo ? <text x={c.x} y={c.y + 7} textAnchor="middle" fontSize={20} className="nm" fill={n.deceased ? C.goldSoft : col} fontWeight={700}>{n.sibling_order}</text> : null}
           {q.hasHidden ? <circle cx={c.x + Math.cos(a) * (r + 3)} cy={c.y + Math.sin(a) * (r + 3)} r={5} fill={col} /> : null}
           {q.depth === 1 ? (
-            <text className="nm lbl-d1" x={c.x + Math.cos(a) * 56} y={c.y + Math.sin(a) * 56 + 6} textAnchor={Math.abs(Math.cos(a)) < 0.3 ? 'middle' : flip ? 'end' : 'start'} fontSize={20} fill={C.parchment} fontWeight={600}>{short(label(n, p.lang).replace(' Iddawela', '').replace(' ඉද්දවෙල', ''), 18)}</text>
+            <text className="nm lbl-d1" x={c.x + Math.cos(a) * (r + 12)} y={c.y + Math.sin(a) * (r + 12)} dominantBaseline="middle" textAnchor={flip ? 'end' : 'start'}
+              transform={`rotate(${flip ? deg + 180 : deg} ${c.x + Math.cos(a) * (r + 12)} ${c.y + Math.sin(a) * (r + 12)})`} fontSize={30} fill={C.goldSoft} fontWeight={600}>
+              {short(label(n, p.lang).replace(' Iddawela', '').replace(' ඉද්දවෙල', ''), 14)}
+            </text>
           ) : (
             <text className={`lbl-d${q.depth}`} x={lx} y={ly} fontSize={q.depth === 2 ? 15 : q.depth === 3 ? 12 : 10.5} fill={q.depth === 2 ? C.parchment : '#CDBFA8'} dominantBaseline="middle"
               textAnchor={flip ? 'end' : 'start'} transform={`rotate(${flip ? deg + 180 : deg} ${lx} ${ly})`}>{short(label(n, p.lang), 26)}</text>
