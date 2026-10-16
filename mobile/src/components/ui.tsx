@@ -1,10 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, TextInput, View, ViewStyle, TextStyle, Image } from 'react-native';
 import { Link, router } from 'expo-router';
 import Svg, { Path, Circle, G } from 'react-native-svg';
 import { C, F, R, shadow, branchColor } from '../lib/theme';
 import { useLang, nm } from '../lib/i18n';
 import { mediaUrl } from '../lib/api';
+
+
+/** Pressable that navigates (SPA link on web, crawlable <a>) and exposes hover state without style functions (Link asChild drops them). */
+export function Tap({ href, onPress, style, children, label, role }: { href?: string; onPress?: () => void; style: (h: boolean, p: boolean) => any; children: React.ReactNode | ((h: boolean) => React.ReactNode); label?: string; role?: any }) {
+  const [h, setH] = useState(false); const [pr, setPr] = useState(false);
+  const inner = (
+    <Pressable accessibilityRole={role || (href ? 'link' : 'button')} accessibilityLabel={label} onPress={href && Platform.OS !== 'web' ? () => router.push(href as any) : onPress}
+      onHoverIn={() => setH(true)} onHoverOut={() => setH(false)} onPressIn={() => setPr(true)} onPressOut={() => setPr(false)} style={StyleSheet.flatten(style(h, pr))}>
+      {typeof children === 'function' ? (children as any)(h) : children}
+    </Pressable>
+  );
+  if (href && Platform.OS === 'web') return <Link href={href as any} asChild>{inner}</Link>;
+  return inner;
+}
 
 const isSi = (s?: string) => !!s && /[\u0D80-\u0DFF]/.test(s);
 
@@ -49,19 +63,13 @@ export function Btn({ label, href, onPress, variant = 'gold', icon, style, disab
   label: string; href?: string; onPress?: () => void; variant?: 'gold' | 'dark' | 'ghost' | 'light' | 'outline' | 'danger'; icon?: React.ReactNode; style?: any; disabled?: boolean; loading?: boolean; small?: boolean;
 }) {
   const v = BTN[variant];
-  const inner = (
-    <Pressable
-      accessibilityRole={href ? 'link' : 'button'}
-      onPress={href ? () => router.push(href as any) : onPress}
-      disabled={disabled || loading}
-      style={({ pressed, hovered }: any) => [s.btn, small && { paddingVertical: 8, paddingHorizontal: 14 }, v.box, hovered && v.hover, pressed && { transform: [{ scale: 0.98 }] }, (disabled || loading) && { opacity: 0.5 }, style]}
-    >
+  return (
+    <Tap href={href} onPress={onPress} label={label}
+      style={(h, pr) => [s.btn, small && { paddingVertical: 8, paddingHorizontal: 14 }, v.box, h && v.hover, pr && { transform: [{ scale: 0.98 }] }, (disabled || loading) && { opacity: 0.5 }, style]}>
       {loading ? <ActivityIndicator size="small" color={v.text.color} /> : icon}
       <Text style={[s.btnText, small && { fontSize: 14 }, v.text]}>{label}</Text>
-    </Pressable>
+    </Tap>
   );
-  if (href && Platform.OS === 'web') return <Link href={href as any} asChild>{inner}</Link>;
-  return inner;
 }
 const BTN: Record<string, { box: any; hover: any; text: any }> = {
   gold: { box: { backgroundColor: C.gold }, hover: { backgroundColor: C.goldSoft }, text: { color: C.ink } },
@@ -74,13 +82,7 @@ const BTN: Record<string, { box: any; hover: any; text: any }> = {
 
 export function Card({ children, style, href, onPress, dark }: { children: React.ReactNode; style?: any; href?: string; onPress?: () => void; dark?: boolean }) {
   const st = [s.card, dark && { backgroundColor: C.ink2, borderColor: 'rgba(230,207,143,.18)' }, style];
-  if (href || onPress) {
-    const inner = (
-      <Pressable onPress={href ? () => router.push(href as any) : onPress} accessibilityRole={href ? 'link' : 'button'}
-        style={({ hovered, pressed }: any) => [st, hovered && s.cardHover, pressed && { opacity: 0.92 }]}>{children}</Pressable>
-    );
-    return href && Platform.OS === 'web' ? <Link href={href as any} asChild>{inner}</Link> : inner;
-  }
+  if (href || onPress) return <Tap href={href} onPress={onPress} style={(h, pr) => [st, h && s.cardHover, pr && { opacity: 0.92 }]}>{children}</Tap>;
   return <View style={st}>{children}</View>;
 }
 

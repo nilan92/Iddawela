@@ -318,3 +318,25 @@ def on_this_day(user=Depends(current_user_optional), db: Session = Depends(get_d
                                          person=card(g["people"][a], user, g), other=card(g["people"][b], user, g)))
     out["this_year"].sort(key=lambda x: -x["years"])
     return out
+
+
+@r.get("/api/home")
+def home(user=Depends(current_user_optional), db: Session = Depends(get_db)):
+    g = graph(db)
+    ppl = g["people"]
+    thirteen = []
+    for p in sorted([p for p in ppl.values() if p.generation == 2 and p.branch_no and p.is_descendant], key=lambda x: x.branch_no):
+        c = card(p, user, g)
+        c["spouse"] = [card(ppl[s], user, g) for s, _ in g["spouses"].get(p.id, [])][:1]
+        c["hometown"] = p.hometown
+        c["descendants"] = sum(1 for q in ppl.values() if q.branch_no == p.branch_no and q.is_descendant) - 1
+        thirteen.append(c)
+    founders = [card(p, user, g) for p in ppl.values() if p.slug in ("ukkubanda", "lokumenike", "mudalihami")]
+    upcoming = db.scalars(select(m.Event).where(m.Event.status == "published", m.Event.starts_on >= dt.date.today()).order_by(m.Event.starts_on).limit(2)).all()
+    last = db.scalars(select(m.Event).where(m.Event.status == "published", m.Event.starts_on < dt.date.today()).order_by(m.Event.starts_on.desc()).limit(3)).all()
+    heritage = db.scalar(select(m.Album).where(m.Album.slug == "heritage"))
+    hphotos = [dict(id=x.id, src=media_url(x.id, "m"), thumb=media_url(x.id, "t"), caption=x.caption_en, w=x.width, h=x.height)
+               for x in db.scalars(select(m.Media).where(m.Media.album_id == heritage.id))] if heritage else []
+    return dict(stats=stats(db), thirteen=thirteen, founders=founders, upcoming=[event_out(e, db) for e in upcoming],
+                recent_events=[event_out(e, db) for e in last], onthisday=on_this_day(user, db), causes=causes(db)[:4],
+                posts=posts(user, db)[:3], heritage_photos=hphotos)

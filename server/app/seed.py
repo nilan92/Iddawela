@@ -57,7 +57,7 @@ def run(seed_dir, media_dir):
         p = m.Person(slug=slugify(k), name_en=d["name"], name_si=nm.get("si"), name_si_machine=bool(nm.get("si")),
                      gender=d.get("gender") or nm.get("gender") or f.get("gender"), birth_year=d.get("birth") or f.get("birth_year"),
                      death_year=death, is_living=living, generation=gen, branch_no=None, sibling_order=sib_order.get(k),
-                     is_descendant=not d.get("spouse_of"), known_as=f.get("known_as"), hometown=f.get("hometown"),
+                     is_descendant=not d.get("spouse_of") and k not in ("lokumenike", "pinchimenike", "ub-weerakoon", "dingiri-amma", "ub-beddewela"), known_as=f.get("known_as"), hometown=f.get("hometown"),
                      profession=f.get("profession"), skills=f.get("skills"), bio_en=d.get("bio_en"), bio_si=bios_si.get(k),
                      bio_si_machine=bool(bios_si.get(k)), legacy_pages=d.get("pages") or None,
                      privacy="public" if living is False else "members", status="approved")

@@ -133,7 +133,7 @@ def page_for(request: Request, path: str, db: Session):
     g = graph(db)
     S = lambda en, si: si if lang == "si" else en
     if head == "":
-        sons = [p for p in g["people"].values() if p.generation == 2 and p.branch_no]
+        sons = [p for p in g["people"].values() if p.generation == 2 and p.branch_no and p.is_descendant]
         sons.sort(key=lambda p: p.branch_no)
         body = (f"<h1>{S('Iddawela Foundation', 'ඉද්දවෙල පදනම')}</h1><p>{E(DEFAULT_DESC[lang])}</p>"
                 f"<h2>{S('The 13 Iddawelas', 'ඉද්දවෙල දහතුන් දෙනා')}</h2><ol>" +
@@ -157,7 +157,7 @@ def page_for(request: Request, path: str, db: Session):
             return render(request, f"/heritage/{p.slug}", t(p, "title", lang), (t(p, "body", lang) or "")[:240], body, lang, ld,
                           image=media_url(p.cover_id, "m") if p.cover_id else None, otype="article")
     if head == "tree":
-        roots = sorted([p for p in g["people"].values() if p.generation == 2 and p.branch_no], key=lambda p: p.branch_no)
+        roots = sorted([p for p in g["people"].values() if p.generation == 2 and p.branch_no and p.is_descendant], key=lambda p: p.branch_no)
         def branch(pid, depth=0):
             if depth > 4:
                 return ""
