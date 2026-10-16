@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Platform, View } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { LangProvider } from '../lib/i18n';
 import { AuthProvider } from '../lib/auth';
@@ -28,7 +28,17 @@ export default function RootLayout() {
     if (!document.getElementById('idw-fonts')) {
       const l = document.createElement('link'); l.id = 'idw-fonts'; l.rel = 'stylesheet'; l.href = '/fonts/fonts.css'; document.head.appendChild(l);
     }
+    // easter egg: type "pahana" anywhere (outside a text field) to find the hidden room
+    let buf = '';
+    const onKey = (e: KeyboardEvent) => {
+      const tg = e.target as HTMLElement | null;
+      if (tg && (tg.tagName === 'INPUT' || tg.tagName === 'TEXTAREA')) return;
+      buf = (buf + (e.key || '')).slice(-6).toLowerCase();
+      if (buf === 'pahana') { buf = ''; router.push('/play' as any); }
+    };
+    window.addEventListener('keydown', onKey);
     if ('serviceWorker' in navigator && location.hostname !== 'localhost') navigator.serviceWorker.register('/sw.js').catch(() => {});
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
   return (
     <SafeAreaProvider>

@@ -136,7 +136,7 @@ def full(p, user, g, db):
                              year_from=c.year_from, year_to=c.year_to, current=c.current, open_to_mentor=c.open_to_mentor)
                         for c in db.scalars(select(m.Career).where(m.Career.person_id == p.id).order_by(m.Career.year_from))]
         photos = db.scalars(select(m.Media).where(m.Media.person_id == p.id).order_by(m.Media.id)).all()
-        d["photos"] = [dict(id=x.id, thumb=media_url(x.id, "t"), src=media_url(x.id, "m"), caption=x.caption_en, w=x.width, h=x.height) for x in photos]
+        d["photos"] = [dict(id=x.id, thumb=media_url(x.id, "t"), src=media_url(x.id, "m"), caption=(x.caption_en or "").split(" [fb:")[0] or None, w=x.width, h=x.height) for x in photos]
     else:
         d["education"], d["careers"], d["photos"] = [], [], []
     ob = db.scalar(select(m.Obituary).where(m.Obituary.person_id == p.id, m.Obituary.status == "published"))

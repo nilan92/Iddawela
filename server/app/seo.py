@@ -263,7 +263,7 @@ def page_for(request: Request, path: str, db: Session):
         en, si, desc = simple[head]
         robots = "noindex, follow" if head in ("login", "opportunities") else None
         return render(request, f"/{head}", S(en, si), desc, f"<h1>{E(S(en, si))}</h1><p>{E(desc)}</p>", lang, robots=robots)
-    if head in ("me", "admin", "reset", "register", "play"):
+    if head in ("me", "admin", "reset", "register", "play", "forgot"):
         return render(request, path, "Iddawela Foundation", DEFAULT_DESC[lang], "", lang, robots="noindex, nofollow")
     return render(request, path, S("Page not found", "පිටුව හමු නොවීය"), DEFAULT_DESC[lang], f"<h1>{S('Page not found', 'පිටුව හමු නොවීය')}</h1>", lang, status=404, robots="noindex")
 

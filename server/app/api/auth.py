@@ -52,9 +52,10 @@ def register(body: RegisterIn, request: Request, db: Session = Depends(get_db)):
         raise HTTPException(409, "An account with this email already exists")
     if phone and db.scalar(select(m.User).where(m.User.phone == phone)):
         raise HTTPException(409, "An account with this phone already exists")
-    first = db.scalar(select(m.User.id).limit(1)) is None
+    # Every self-registered account starts as a pending member; the super admin is created from the server CLI
+    # (python -m app.create_admin), never by being first to sign up on a public URL.
     u = m.User(name=body.name.strip()[:200], email=email, phone=phone, password_hash=hash_password(body.password),
-               role="super_admin" if first else "member", status="approved" if first else "pending",
+               role="member", status="pending",
                join_note=(body.note or "")[:2000], lang=body.lang or "en")
     db.add(u); db.flush()
     if body.person_id and db.get(m.Person, body.person_id):

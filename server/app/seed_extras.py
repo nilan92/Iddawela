@@ -13,6 +13,14 @@ def run(seed_dir):
     if not d.exists():
         print("no fb dir"); return
     db = SessionLocal()
+    # Rohana Iddawela (b. 1955, Nilan's father) is living and has been the webmaster of iddawela.com since 2008.
+    # Do not confuse him with Rohan Iddawela (Cyril's son, d. 2022).
+    ro = db.scalar(select(m.Person).where(m.Person.slug == "rohana-iddawela"))
+    if ro:
+        ro.is_living = True; ro.death_year = None; ro.death_date = None
+        note = "Webmaster of iddawela.com since 2008"
+        if not ro.skills or note not in ro.skills:
+            ro.skills = (note + (", " + ro.skills if ro.skills else ""))
     photos = json.loads((d / "fb_photos.json").read_text())
     # 1) committee meeting, 11 Oct 2015 (new to the archive)
     meet = db.scalar(select(m.Event).where(m.Event.slug == "committee-meeting-2015"))

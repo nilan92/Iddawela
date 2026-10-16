@@ -61,7 +61,11 @@ def album(slug: str, user=Depends(current_user_optional), db: Session = Depends(
     photos = db.scalars(select(m.Media).where(m.Media.album_id == a.id).order_by(m.Media.id))
     return dict(id=a.id, slug=a.slug, title_en=a.title_en, title_si=a.title_si, kind=a.kind, year=a.year,
                 description_en=a.description_en, description_si=a.description_si,
-                photos=[dict(id=x.id, thumb=media_url(x.id, "t"), src=media_url(x.id, "m"), caption=x.caption_en, w=x.width, h=x.height) for x in photos])
+                photos=[dict(id=x.id, thumb=media_url(x.id, "t"), src=media_url(x.id, "m"), caption=clean_caption(x.caption_en), w=x.width, h=x.height) for x in photos])
+
+def clean_caption(s):
+    import re as _re
+    return _re.sub(r"\s*\[fb:\d+\]", "", s).strip() if s else s
 
 # ---------------- pages ----------------
 @r.get("/api/pages")
@@ -335,7 +339,7 @@ def home(user=Depends(current_user_optional), db: Session = Depends(get_db)):
     upcoming = db.scalars(select(m.Event).where(m.Event.status == "published", m.Event.starts_on >= dt.date.today()).order_by(m.Event.starts_on).limit(2)).all()
     last = db.scalars(select(m.Event).where(m.Event.status == "published", m.Event.starts_on < dt.date.today()).order_by(m.Event.starts_on.desc()).limit(3)).all()
     heritage = db.scalar(select(m.Album).where(m.Album.slug == "heritage"))
-    hphotos = [dict(id=x.id, src=media_url(x.id, "m"), thumb=media_url(x.id, "t"), caption=x.caption_en, w=x.width, h=x.height)
+    hphotos = [dict(id=x.id, src=media_url(x.id, "m"), thumb=media_url(x.id, "t"), caption=clean_caption(x.caption_en), w=x.width, h=x.height)
                for x in db.scalars(select(m.Media).where(m.Media.album_id == heritage.id))] if heritage else []
     return dict(stats=stats(db), thirteen=thirteen, founders=founders, upcoming=[event_out(e, db) for e in upcoming],
                 recent_events=[event_out(e, db) for e in last], onthisday=on_this_day(user, db), causes=causes(db)[:4],

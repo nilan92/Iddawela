@@ -45,32 +45,33 @@ function Brand() {
 export function Header() {
   const { t } = useLang();
   const { user } = useAuth();
-  const { wide } = useLayout();
+  const { width, mid } = useLayout();
+  const full = width >= 1180;      // the whole nav fits on one line from here up
   const path = usePathname();
   const [open, setOpen] = useState(false);
   const go = (h: string) => { setOpen(false); router.push(h as any); };
+  const acct = user ? { label: isAdmin(user) ? t('admin') : t('me'), href: isAdmin(user) ? '/admin' : '/me' } : { label: t('signin'), href: '/login' };
   return (
     <View style={{ backgroundColor: C.ink, borderBottomWidth: 1, borderBottomColor: 'rgba(201,162,74,.22)', zIndex: 20 }}>
-      <Container style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 68 }}>
+      <Container style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 68, gap: 16 }}>
         <Brand />
-        {wide ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }} accessibilityRole={'navigation' as any}>
+        {full ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }} accessibilityRole={'navigation' as any}>
             {NAV.map(([h, k]) => {
               const active = path === h || path.startsWith(h + '/');
               return (
-                <Tap key={h} href={h} style={(hv) => ({ paddingVertical: 8, paddingHorizontal: 11, borderRadius: 8, backgroundColor: hv ? 'rgba(246,239,226,.07)' : 'transparent' })}>
-                  <Text style={{ fontFamily: F.body, fontSize: 14.5, fontWeight: '600', color: active ? C.gold : '#E9DFCB' }}>{t(k)}</Text>
+                <Tap key={h} href={h} style={(hv) => ({ paddingVertical: 8, paddingHorizontal: 12, marginHorizontal: 1, borderRadius: 8, backgroundColor: hv ? 'rgba(246,239,226,.07)' : 'transparent' })}>
+                  <Text numberOfLines={1} style={{ fontFamily: F.body, fontSize: 14.5, fontWeight: '600', color: active ? C.gold : '#E9DFCB', paddingHorizontal: 2, whiteSpace: 'nowrap' } as any}>{t(k)}</Text>
                 </Tap>
               );
             })}
           </View>
         ) : null}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <LangToggle />
-          {wide ? (user ? <Btn small label={isAdmin(user) ? t('admin') : t('me')} href={isAdmin(user) ? '/admin' : '/me'} icon={<UserIcon size={16} color={C.ink} />} />
-                        : <Btn small label={t('signin')} href="/login" />) : null}
-          {!wide ? (
-            <Pressable onPress={() => setOpen(true)} accessibilityLabel={t('menu')} style={{ padding: 8 }}><Menu color={C.parchment} size={26} /></Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: mid ? 10 : 6, flexShrink: 0 }}>
+          {mid ? <LangToggle /> : null}
+          <Btn small label={acct.label} href={acct.href} icon={user ? <UserIcon size={16} color={C.ink} /> : undefined} style={!mid ? { paddingHorizontal: 12 } : null} />
+          {!full ? (
+            <Pressable onPress={() => setOpen(true)} accessibilityLabel={t('menu')} style={{ padding: 6 }}><Menu color={C.parchment} size={26} /></Pressable>
           ) : null}
         </View>
       </Container>
@@ -81,6 +82,7 @@ export function Header() {
             <Pressable onPress={() => setOpen(false)} accessibilityLabel={t('close')} style={{ padding: 8 }}><X color={C.parchment} size={28} /></Pressable>
           </Container>
           <ScrollView contentContainerStyle={{ padding: 28, gap: 6 }}>
+            <View style={{ alignSelf: 'flex-start', marginBottom: 10 }}><LangToggle /></View>
             {[['/', 'home'], ...NAV, ['/opportunities', 'opportunities'], ['/ask', 'ask']].map(([h, k]) => (
               <Pressable key={h} onPress={() => go(h)} style={{ paddingVertical: 10 }}>
                 <Text style={{ fontFamily: F.display, fontSize: 32, color: path === h ? C.gold : C.parchment, fontWeight: '500' }}>{t(k)}</Text>
@@ -140,7 +142,7 @@ export function Footer() {
         </View>
         <Liyawela width={1000} color="rgba(201,162,74,.5)" />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 }}>
-          <Small color="#8E8270">© {new Date().getFullYear()} {t('org')} · iddawela.com {lang === 'si' ? '2008 සිට' : 'since 2008'}</Small>
+          <Small color="#8E8270">© {new Date().getFullYear()} {t('org')} · iddawela.com {lang === 'si' ? '2008 සිට' : 'since 2008'} · {lang === 'si' ? 'වෙබ් පරිපාලක: රෝහණ ඉද්දවෙල (2008 සිට)' : 'Webmaster since 2008: Rohana Iddawela'}</Small>
           <Small color="#8E8270">{lang === 'si' ? 'පවුලෙන් පවුලට, පරම්පරාවෙන් පරම්පරාවට.' : 'From family to family, generation to generation.'}</Small>
         </View>
       </Container>

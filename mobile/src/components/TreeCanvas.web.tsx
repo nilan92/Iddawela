@@ -33,7 +33,23 @@ const TreeCanvas = forwardRef<CanvasHandle, Props>(function TreeCanvas(p, ref) {
   const apply = useCallback(() => {
     const t = T.current; vp.current?.setAttribute('transform', `translate(${t.x},${t.y}) scale(${t.k})`);
     svg.current?.setAttribute('data-z', t.k < 0.35 ? 'far' : t.k < 0.8 ? 'mid' : 'near');
+    // perimeter labels for the 13 siblings keep a constant, readable screen size at any zoom
+    // and are nudged apart in screen space so neighbours never sit on top of each other
+    const els = Array.from(svg.current?.querySelectorAll<SVGGElement>('.plbl') || []);
+    const boxes: { x0: number; x1: number; y0: number; y1: number }[] = [];
+    els.map((g) => ({ g, x: +g.dataset.x! * t.k, y: +g.dataset.y! * t.k, w: +g.dataset.w!, h: +g.dataset.h!, a: g.dataset.a! }))
+      .sort((a, b) => a.y - b.y)
+      .forEach((o) => {
+        const x0 = o.a === 'end' ? o.x - o.w : o.a === 'start' ? o.x : o.x - o.w / 2;
+        let y = o.y; let guard = 0;
+        const hit = () => boxes.some((b) => x0 < b.x1 && x0 + o.w > b.x0 && y - o.h / 2 < b.y1 && y + o.h / 2 > b.y0);
+        while (hit() && guard++ < 40) y += 4;
+        boxes.push({ x0, x1: x0 + o.w, y0: y - o.h / 2, y1: y + o.h / 2 });
+        o.g.setAttribute('transform', `translate(${o.x / t.k},${y / t.k}) scale(${1 / t.k})`);
+      });
   }, []);
+  useEffect(() => { apply(); });   // re-place perimeter labels after every render
+
   const animateTo = useCallback((x: number, y: number, k: number) => {
     if (anim.current) cancelAnimationFrame(anim.current);
     const s = { ...T.current }; const t0 = performance.now(); const dur = 650;
@@ -46,7 +62,7 @@ const TreeCanvas = forwardRef<CanvasHandle, Props>(function TreeCanvas(p, ref) {
   }, [apply]);
   const bounds = useCallback(() => {
     if (p.view === 'classic') { const l = L as any; return { x0: -40, y0: -40, x1: l.width + 40, y1: l.height }; }
-    const r = (L as any).radius; return { x0: -r, y0: -r, x1: r, y1: r };
+    const r = (L as any).radius + 120; return { x0: -r - 60, y0: -r - 260, x1: r + 60, y1: r + 60 };
   }, [L, p.view]);
   const fit = useCallback((animate = true) => {
     const el = wrap.current; if (!el) return;
@@ -106,12 +122,17 @@ const TreeCanvas = forwardRef<CanvasHandle, Props>(function TreeCanvas(p, ref) {
     .tc[data-z=far] .lbl-d4,.tc[data-z=far] .lbl-d3{display:none}
     .tc[data-z=far] .lbl-d2{display:none}
     .tc[data-z=mid] .lbl-d4{display:none}
+    .tc[data-z=far] .lbl-d1{display:none}
+    .tc .plbl{display:none;cursor:pointer}
+    .tc[data-z=far] .plbl{display:inline}
+    .tc .plbl text{paint-order:stroke;stroke:${C.ink};stroke-width:5px;stroke-linejoin:round}
+    .tc .plbl:hover text.pn{fill:${C.gold}}
     .tc .node{cursor:pointer;transition:opacity .35s}
     .tc .node:hover .ring{stroke:${C.gold};stroke-width:3}
     .tc .dim{opacity:.16}
     .tc .lk{transition:opacity .35s}
   `;
-  const nodeEls: React.ReactNode[] = []; const linkEls: React.ReactNode[] = [];
+  const nodeEls: React.ReactNode[] = []; const linkEls: React.ReactNode[] = []; const perim: React.ReactNode[] = [];
   if (p.view === 'classic') {
     for (const l of L.links) {
       const a = pos.get(l.from), b = pos.get(l.to); if (!a || !b) continue;
@@ -127,6 +148,7 @@ const TreeCanvas = forwardRef<CanvasHandle, Props>(function TreeCanvas(p, ref) {
         const sel = p.selected === id; const inPath = pathSet.has(id); const col = bc(n.branch_no);
         nodeEls.push(
           <g key={'n' + id} className={'node' + (dimmed(n) ? ' dim' : '')} onClick={click(id)} role="button" aria-label={n.name_en}>
+            <title>{label(n, p.lang)}{yrs(n) ? ` (${yrs(n)})` : ''}</title>
             {i > 0 ? <g><circle cx={x - 4} cy={c.y} r={7} fill={C.parchment} stroke={C.gold} strokeWidth={1.5} /><circle cx={x - 4} cy={c.y} r={3} fill="none" stroke={C.gold} strokeWidth={1.2} /></g> : null}
             <rect className="ring" x={x} y={y} width={CW} height={CH} rx={14} fill={n.is_descendant ? C.paper : '#F3EBDC'} stroke={sel || inPath ? C.gold : 'rgba(0,0,0,.12)'} strokeWidth={sel || inPath ? 3 : 1} />
             <rect x={x} y={y + 10} width={4} height={CH - 20} rx={2} fill={col} />
@@ -175,6 +197,7 @@ const TreeCanvas = forwardRef<CanvasHandle, Props>(function TreeCanvas(p, ref) {
       const lx = c.x + Math.cos(a) * (r + 8), ly = c.y + Math.sin(a) * (r + 8);
       nodeEls.push(
         <g key={'n' + q.id} className={'node' + (dimmed(n) ? ' dim' : '')} onClick={click(q.id)} role="button" aria-label={n.name_en}>
+          <title>{label(n, p.lang)}{yrs(n) ? ` (${yrs(n)})` : ''}</title>
           {(sel || inPath) ? <circle cx={c.x} cy={c.y} r={r + 9} fill={C.gold} fillOpacity={0.25} /> : null}
           <clipPath id={'cp' + q.id}><circle cx={c.x} cy={c.y} r={r - 2} /></clipPath>
           <circle className="ring" cx={c.x} cy={c.y} r={r} fill={q.depth === 1 ? (n.deceased ? C.ink2 : C.paper) : col} fillOpacity={q.depth === 1 ? 1 : n.deceased ? 0.55 : 0.95} stroke={sel || inPath ? C.gold : q.depth === 1 ? col : 'rgba(246,239,226,.55)'} strokeWidth={sel || inPath ? 4 : q.depth === 1 ? 3 : 1.2} />
@@ -193,6 +216,28 @@ const TreeCanvas = forwardRef<CanvasHandle, Props>(function TreeCanvas(p, ref) {
         </g>
       );
     }
+    const R = (L as any).radius || 1200;
+    for (const q of L.placed) {
+      if (q.depth !== 1) continue;
+      const n = byId.get(q.id); if (!n) continue;
+      const a = q.angle || 0; const cx = Math.cos(a), sy = Math.sin(a);
+      const px = (R + 30) * cx, py = (R + 30) * sy;
+      const narrow = typeof window !== 'undefined' && window.innerWidth < 700;
+      const anchor = narrow ? 'middle' : cx > 0.25 ? 'end' : cx < -0.25 ? 'start' : 'middle';  // read inward so labels never leave the canvas
+      const nmTxt = short(label(n, p.lang).replace(' Iddawela', '').replace(' ඉද්දවෙල', ''), 22);
+      const txt = `${n.sibling_order ? `${n.sibling_order} · ` : ''}${nmTxt}`;
+      perim.push(narrow ? (
+        <g key={'p' + q.id} className={'plbl' + (dimmed(n) ? ' dim' : '')} data-x={px} data-y={py} data-w={30} data-h={30} data-a="middle" transform={`translate(${px},${py})`} onClick={click(q.id)} role="button" aria-label={n.name_en}>
+          <circle r={14} fill={C.ink} stroke={bc(n.branch_no)} strokeWidth={2.5} />
+          <text className="nm pn" y={5} textAnchor="middle" fontSize={13} fontWeight={700} fill={C.goldSoft}>{n.sibling_order || ''}</text>
+        </g>
+      ) : (
+        <g key={'p' + q.id} className={'plbl' + (dimmed(n) ? ' dim' : '')} data-x={px} data-y={py} data-w={txt.length * 8.6 + 8} data-h={38} data-a={anchor} transform={`translate(${px},${py})`} onClick={click(q.id)} role="button" aria-label={n.name_en}>
+          <text className="nm pn" y={-2} textAnchor={anchor} fontSize={16} fontWeight={600} fill={C.goldSoft}>{txt}</text>
+          <text y={14} textAnchor={anchor} fontSize={11.5} fill={bc(n.branch_no)} style={{ letterSpacing: 1 }}>{yrs(n)}</text>
+        </g>
+      ));
+    }
   }
   const bg = p.view === 'classic' ? C.parchment : C.ink;
   return (
@@ -202,7 +247,7 @@ const TreeCanvas = forwardRef<CanvasHandle, Props>(function TreeCanvas(p, ref) {
         <style>{css}</style>
         <g ref={vp}>
           {p.view === 'lotus' ? [1, 2, 3, 4].map((d) => <circle key={d} r={d === 1 ? 260 : 260 + (d - 1) * 250 + (d > 2 ? (d - 2) * 60 : 0)} fill="none" stroke={C.gold} strokeOpacity={0.1} strokeDasharray="4 10" />) : null}
-          {linkEls}{nodeEls}
+          {linkEls}{nodeEls}{perim}
         </g>
       </svg>
       <span style={{ display: 'none' }}>{bg}</span>
