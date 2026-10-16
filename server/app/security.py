@@ -48,7 +48,7 @@ def hash_reset(t: str) -> str:
 
 def current_user_optional(request: Request, db: Session = Depends(get_db)):
     auth = request.headers.get("authorization", "")
-    tok = auth[7:] if auth.lower().startswith("bearer ") else request.cookies.get("idw_session")
+    tok = auth[7:] if auth.lower().startswith("bearer ") else (request.cookies.get("idw_session") if request.url.path.startswith("/media/") else None)
     if not tok:
         return None
     data = read_token(tok)

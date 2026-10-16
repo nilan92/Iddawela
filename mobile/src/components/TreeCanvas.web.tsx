@@ -62,7 +62,7 @@ const TreeCanvas = forwardRef<CanvasHandle, Props>(function TreeCanvas(p, ref) {
   }, [apply]);
   const bounds = useCallback(() => {
     if (p.view === 'classic') { const l = L as any; return { x0: -40, y0: -40, x1: l.width + 40, y1: l.height }; }
-    const r = (L as any).radius + 120; return { x0: -r - 60, y0: -r - 260, x1: r + 60, y1: r + 60 };
+    const r = (L as any).radius + 120; return { x0: -r - 60, y0: -r - 420, x1: r + 60, y1: r + 80 };
   }, [L, p.view]);
   const fit = useCallback((animate = true) => {
     const el = wrap.current; if (!el) return;

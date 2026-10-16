@@ -1,0 +1,19 @@
+# Iddawela Foundation preview (separate app: /opt/iddawela, iddawela.service on 127.0.0.1:8820)
+iddawela.161-118-230-250.sslip.io {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+	request_body {
+		max_size 20MB
+	}
+	reverse_proxy 127.0.0.1:8820
+	log {
+		output file /var/log/caddy/iddawela.log {
+			roll_size 10MiB
+			roll_keep 3
+		}
+	}
+}

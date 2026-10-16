@@ -8,10 +8,18 @@ export function getToken(): string | null {
   if (Platform.OS === 'web' && typeof localStorage !== 'undefined') return localStorage.getItem(KEY);
   return memToken;
 }
+/** Images are plain <img> requests (no Authorization header), so members-only photos are authorised by a cookie scoped to /media only. */
+function mediaCookie(t: string | null) {
+  if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+  const secure = location.protocol === 'https:' ? '; Secure' : '';
+  document.cookie = t ? `idw_session=${t}; Path=/media; Max-Age=${30 * 86400}; SameSite=Lax${secure}` : `idw_session=; Path=/media; Max-Age=0; SameSite=Lax${secure}`;
+}
 export function setToken(t: string | null) {
   if (Platform.OS === 'web' && typeof localStorage !== 'undefined') { t ? localStorage.setItem(KEY, t) : localStorage.removeItem(KEY); }
   memToken = t;
+  mediaCookie(t);
 }
+if (Platform.OS === 'web' && typeof localStorage !== 'undefined') mediaCookie(localStorage.getItem(KEY));
 export const mediaUrl = (u?: string | null) => (u ? (u.startsWith('http') ? u : BASE + u) : undefined);
 
 export class ApiError extends Error { status: number; constructor(m: string, s: number) { super(m); this.status = s; } }
