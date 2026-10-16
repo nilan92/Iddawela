@@ -42,7 +42,7 @@ export default function Person() {
             <H1 color={C.parchment} style={{ fontSize: wide ? 54 : 38, lineHeight: wide ? 60 : 44 }}>{nm(p, lang)}</H1>
             {other ? <Text style={{ fontFamily: lang === 'si' ? F.display : F.sinhalaDisplay, fontSize: 22, color: C.goldSoft }}>{other}</Text> : null}
             {p.known_as && p.known_as !== p.name_en ? <Small color="#B9AC95">{lang === 'si' ? 'හඳුන්වන නම' : 'Known as'}: {p.known_as}</Small> : null}
-            <Text style={{ fontFamily: F.display, fontSize: 22, color: C.parchment, fontStyle: 'italic' }}>{years(p)}{p.profession ? `  ·  ${p.profession}` : ''}{p.hometown ? `  ·  ${p.hometown}` : ''}</Text>
+            <Text style={{ fontFamily: F.display, fontSize: 22, color: C.parchment, fontStyle: 'italic' }}>{[years(p), p.profession, p.hometown].filter(Boolean).join('  ·  ')}</Text>
             {p.lineage?.length ? (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
                 {[...p.lineage].reverse().map((a: any, i: number) => (

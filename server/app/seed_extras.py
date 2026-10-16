@@ -62,6 +62,17 @@ def run(seed_dir):
         if not ev.cover_id:
             ev.cover_id = md.id
             db.get(m.Album, ev.album_id).cover_id = md.id
+    # Memorial pages for the founders and the 13 Iddawelas who have passed (condolences open; bios are public for the deceased)
+    gen = list(db.scalars(select(m.Person).where(m.Person.generation.in_([1, 2]), m.Person.is_descendant.is_(True)))) + list(db.scalars(select(m.Person).where(m.Person.generation == 1, m.Person.is_descendant.is_(False))))
+    for p in gen:
+        if not (p.death_year or p.death_date) or db.scalar(select(m.Obituary.id).where(m.Obituary.person_id == p.id)):
+            continue
+        paras = [x.strip() for x in (p.bio_en or "").split("\n") if len(x.strip()) > 40][:3]
+        paras_si = [x.strip() for x in (p.bio_si or "").split("\n") if len(x.strip()) > 20][:3]
+        yrs = f"{p.birth_year or ''}–{p.death_year or ''}".strip("–")
+        db.add(m.Obituary(slug=f"in-memory-of-{p.slug}", person_id=p.id, title_en=f"In loving memory of {p.known_as or p.name_en}",
+                          title_si=(f"{p.name_si} සදා සිහිවටන" if p.name_si else None) , body_en="\n\n".join(paras) or None,
+                          body_si="\n\n".join(paras_si) or None, published_on=dt.date(p.death_year, 12, 31) if p.death_year else None, status="published"))
     db.commit()
     print("extras ok")
 

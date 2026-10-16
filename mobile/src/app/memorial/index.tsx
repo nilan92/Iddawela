@@ -34,7 +34,7 @@ export default function Memorial() {
                   {o.person ? <Avatar person={o.person} size={92} /> : null}
                   <H3 color={C.parchment} style={{ textAlign: 'center' }}>{L(o, 'title', lang)}</H3>
                   <Small color={C.goldSoft}>{years(o.person)}</Small>
-                  <Small color="#B9AC95">🪔 {o.lamps} {t('lamps')}</Small>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Pahana size={18} lit={o.lamps > 0} /><Small color="#B9AC95">{o.lamps} {t('lamps')}</Small></View>
                 </Card>
               ))}
             </View>
