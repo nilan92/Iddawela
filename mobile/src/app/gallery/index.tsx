@@ -6,6 +6,7 @@ import { Card, Container, Loading, Small } from '../../components/ui';
 import { mediaUrl } from '../../lib/api';
 import { L, useLang } from '../../lib/i18n';
 import { useApi, useLayout, useTitle } from '../../lib/hooks';
+import { useAuth, webmasterName } from '../../lib/auth';
 import { C, F } from '../../lib/theme';
 
 export default function Gallery() {
@@ -13,11 +14,14 @@ export default function Gallery() {
   const T = (en: string, si: string) => (lang === 'si' ? si : en);
   const { wide, mid } = useLayout();
   const { data } = useApi<any[]>('/api/albums');
+  const wm = webmasterName(useAuth().user, lang);
   useTitle(t('gallery'));
   return (
     <Screen>
       <PageHero kicker={t('gallery')} title={T('A century in photographs', 'ඡායාරූපවලින් සියවසක්')}
-        body={T('Hamuwas, weddings and the old black-and-white portraits, kept since 2008 by webmaster Rohana Iddawela and the families who sent them in.', 'හමුව, විවාහ සහ පැරණි කළු-සුදු ඡායාරූප, 2008 සිට වෙබ් පරිපාලක රෝහණ ඉද්දවෙල සහ පවුල් විසින් සුරැකි ඒවා.')} />
+        body={wm
+          ? T(`Hamuwas, weddings and the old black-and-white portraits, kept since 2008 by webmaster ${wm} and the families who sent them in.`, `හමුව, විවාහ සහ පැරණි කළු-සුදු ඡායාරූප, 2008 සිට වෙබ් පරිපාලක ${wm} සහ පවුල් විසින් සුරැකි ඒවා.`)
+          : T('Hamuwas, weddings and the old black-and-white portraits, kept since 2008 by the family’s webmaster and the families who sent them in.', 'හමුව, විවාහ සහ පැරණි කළු-සුදු ඡායාරූප, 2008 සිට පවුලේ වෙබ් පරිපාලක සහ පවුල් විසින් සුරැකි ඒවා.')} />
       <Container style={{ paddingVertical: wide ? 56 : 28 }}>
         {!data ? <Loading /> : (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from .config import WEB_DIR, SITE_URL, NOINDEX
 from .db import get_db
 from . import models as m
-from .family import graph, deceased, show_details, media_url
+from .family import graph, deceased, show_details, media_url, redact_text, ANON_EN, ANON_SI
 
 r = APIRouter(include_in_schema=False)
 E = html.escape
@@ -106,7 +106,7 @@ def person_ld(p, g):
         d["alternateName"] = p.name_si
     if p.gender:
         d["gender"] = "Male" if p.gender == "M" else "Female"
-    if deceased(p) or p.privacy == "public":
+    if deceased(p):
         if p.birth_year:
             d["birthDate"] = str(p.birth_year)
         if p.death_year:
@@ -117,16 +117,31 @@ def person_ld(p, g):
             d["image"] = f"{SITE_URL}{media_url(p.photo_id, 'm')}"
     people = g["people"]
     ref = lambda i: {"@type": "Person", "name": people[i].name_en, "url": f"{SITE_URL}/people/{people[i].slug}"}
-    if g["parents"].get(p.id):
-        d["parent"] = [ref(i) for i in g["parents"][p.id]]
-    if g["children"].get(p.id):
-        d["children"] = [ref(i) for i in g["children"][p.id]]
-    if g["spouses"].get(p.id):
-        d["spouse"] = [ref(i) for i, _ in g["spouses"][p.id]]
+    dead = lambda ids: [ref(i) for i in ids if i in people and deceased(people[i])]   # living relatives are never named
+    d["parent"] = dead(g["parents"].get(p.id, []))
+    d["children"] = dead(g["children"].get(p.id, []))
+    d["spouse"] = dead([i for i, _ in g["spouses"].get(p.id, [])])
     d["memberOf"] = {"@id": f"{SITE_URL}/#org"}
     return {k: v for k, v in d.items() if v}
 
+def members_only(request: Request, path: str, lang: str):
+    """The same page for a living person, a members-only page and a person who isn't on the tree at all."""
+    S = lambda en, si: si if lang == "si" else en
+    body = (f"<article><h1>{S('Members only', 'සාමාජිකයින්ට පමණි')}</h1><p>{S('This page is visible to signed-in family members. Living relatives are shown only to the family.', 'මෙම පිටුව ඇතුළු වූ පවුලේ සාමාජිකයින්ට පමණි. ජීවත්ව සිටින ඥාතීන් පෙන්වන්නේ පවුලට පමණි.')}</p>"
+            f"<p><a href=\"/login\">{S('Sign in', 'ඇතුළු වන්න')}</a> · <a href=\"/join\">{S('Join the family', 'පවුලට එක්වන්න')}</a></p></article>")
+    return render(request, path, S("Members only", "සාමාජිකයින්ට පමණි"), S("Visible to signed-in family members.", "පවුලේ සාමාජිකයින්ට පමණි."),
+                  body, lang, robots="noindex, nofollow")
+
 def page_for(request: Request, path: str, db: Session):
+    """Every server-rendered page is a public page: names of living relatives are taken out of the whole document."""
+    resp = _page_for(request, path, db)
+    g = graph(db)
+    html_doc = redact_text(resp.body.decode("utf-8"), g)
+    headers = {k: v for k, v in resp.headers.items() if k.lower() not in ("content-length", "content-type")}
+    return HTMLResponse(html_doc, status_code=resp.status_code, headers=headers)
+
+def _page_for(request: Request, path: str, db: Session):
+    from .api.content import members_only_page
     lang = "si" if request.query_params.get("lang") == "si" else "en"
     parts = [x for x in path.strip("/").split("/") if x]
     head = parts[0] if parts else ""
@@ -137,19 +152,24 @@ def page_for(request: Request, path: str, db: Session):
         sons.sort(key=lambda p: p.branch_no)
         body = (f"<h1>{S('Iddawela Foundation', 'ඉද්දවෙල පදනම')}</h1><p>{E(DEFAULT_DESC[lang])}</p>"
                 f"<h2>{S('The 13 Iddawelas', 'ඉද්දවෙල දහතුන් දෙනා')}</h2><ol>" +
-                "".join(f"<li><a href=\"/people/{p.slug}\">{E((p.name_si if lang == 'si' and p.name_si else p.name_en))}</a> {p.birth_year or ''}–{p.death_year or ''}</li>" for p in sons) + "</ol>")
+                "".join((f"<li><a href=\"/people/{p.slug}\">{E((p.name_si if lang == 'si' and p.name_si else p.name_en))}</a> {p.birth_year or ''}–{p.death_year or ''}</li>"
+                         if deceased(p) else f"<li>{S(ANON_EN, ANON_SI)}</li>") for p in sons) + "</ol>")
         ld = [org_ld(), {"@context": "https://schema.org", "@type": "WebSite", "url": SITE_URL + "/", "name": ORG_NAME, "inLanguage": ["en", "si"],
                          "potentialAction": {"@type": "SearchAction", "target": f"{SITE_URL}/tree?q={{search_term_string}}", "query-input": "required name=search_term_string"}}]
         return render(request, "/", f"{ORG_NAME} · {ORG_SI}", DEFAULT_DESC[lang], body, lang, ld)
     if head == "story":
         pages = db.scalars(select(m.Page).where(m.Page.section == "heritage").order_by(m.Page.sort)).all()
         body = f"<h1>{S('Our story', 'අපේ කතාව')}</h1>" + "".join(
-            f"<section><h2><a href=\"/heritage/{p.slug}\">{E(t(p, 'title', lang))}</a></h2>{paras(t(p, 'body', lang), 900)}</section>" for p in pages)
+            f"<section><h2><a href=\"/heritage/{p.slug}\">{E(t(p, 'title', lang))}</a></h2>"
+            + (f"<p>{S('Visible to signed-in family members.', 'පවුලේ සාමාජිකයින්ට පමණි.')}</p>" if members_only_page(p) else paras(t(p, 'body', lang), 900))
+            + "</section>" for p in pages)
         return render(request, "/story", S("Our story: from the 1887 Korale to 13 Iddawelas", "අපේ කතාව"),
                       S("How the Iddawela family of Pilimathalawa began: Mudalihami Iddawela, Korale & Police Headman of Yatinuwara (1887), the Mahagedara, Ukkubanda and Lokumenike and their 13 children.", DEFAULT_DESC["si"]),
                       body, lang, [org_ld(), crumbs([("Home", "/"), ("Our story", "/story")])])
     if head == "heritage" and len(parts) > 1:
         p = db.scalar(select(m.Page).where(m.Page.slug == parts[1]))
+        if p and members_only_page(p):
+            return members_only(request, f"/heritage/{p.slug}", lang)
         if p:
             body = f"<article><h1>{E(t(p, 'title', lang))}</h1>{paras(t(p, 'body', lang))}</article>"
             ld = [{"@context": "https://schema.org", "@type": "Article", "headline": p.title_en, "inLanguage": lang, "publisher": {"@id": f"{SITE_URL}/#org"},
@@ -162,32 +182,45 @@ def page_for(request: Request, path: str, db: Session):
             if depth > 4:
                 return ""
             kids = g["children"].get(pid, [])
+            dead = [k for k in kids if deceased(g["people"][k])]
+            living = len(kids) - len(dead)
             if not kids:
                 return ""
-            return "<ul>" + "".join(f"<li><a href=\"/people/{g['people'][k].slug}\">{E(g['people'][k].name_en)}</a>{branch(k, depth + 1)}</li>" for k in kids) + "</ul>"
+            more = f"<li>{living} {S('family members (sign in to see the full tree)', 'පවුලේ සාමාජිකයින් (සම්පූර්ණ ගස බැලීමට ඇතුළු වන්න)')}</li>" if living else ""
+            return "<ul>" + "".join(f"<li><a href=\"/people/{g['people'][k].slug}\">{E(g['people'][k].name_en)}</a>{branch(k, depth + 1)}</li>" for k in dead) + more + "</ul>"
+        def root_li(p):
+            if deceased(p):
+                return f"<li><a href=\"/people/{p.slug}\">{E(p.name_en)}</a>{branch(p.id)}</li>"
+            return f"<li>{S(ANON_EN, ANON_SI)}{branch(p.id)}</li>"
         body = (f"<h1>{S('The Iddawela family tree', 'ඉද්දවෙල පවුල් ගස')}</h1><p>{S('Six generations of the Iddawela family of Pilimathalawa, from Mudalihami Iddawela (Korale, 1887) through Ukkubanda and Lokumenike to their 13 children and their descendants.', 'පිළිමතලාවේ ඉද්දවෙල පවුලේ පරම්පරා හයක්.')}</p><ul>" +
-                "".join(f"<li><a href=\"/people/{p.slug}\">{E(p.name_en)}</a>{branch(p.id)}</li>" for p in roots) + "</ul>")
+                "".join(root_li(p) for p in roots) + "</ul>"
+                + f"<p>{S('Living family members are shown to signed-in members.', 'ජීවත්ව සිටින පවුලේ සාමාජිකයින් පෙන්වන්නේ ඇතුළු වූ සාමාජිකයින්ට පමණි.')} <a href=\"/login\">{S('Sign in', 'ඇතුළු වන්න')}</a></p>")
         return render(request, "/tree", S("Interactive family tree", "අන්තර්ක්‍රියාකාරී පවුල් ගස"),
                       S(f"Explore the Iddawela family tree: {len(g['people'])} relatives across six generations, descendants of Ukkubanda Iddawela and Lokumenike of Pilimathalawa.", DEFAULT_DESC["si"]),
                       body, lang, [org_ld(), crumbs([("Home", "/"), ("Family tree", "/tree")])])
     if head == "people" and len(parts) > 1:
         p = db.scalar(select(m.Person).where(m.Person.slug == parts[1], m.Person.status == "approved"))
-        if p:
-            name = p.name_si if lang == "si" and p.name_si else p.name_en
-            years = f"{p.birth_year or ''}–{p.death_year or ''}" if (deceased(p) or p.privacy == "public") and (p.birth_year or p.death_year) else ""
-            det = deceased(p) or p.privacy == "public"
-            people = g["people"]
-            rel = lambda ids: ", ".join(f"<a href=\"/people/{people[i].slug}\">{E(people[i].name_en)}</a>" for i in ids if i in people)
-            body = (f"<article><h1>{E(name)}</h1>" + (f"<p>{E(years)}</p>" if years else "") +
-                    (paras(t(p, "bio", lang)) if det else f"<p>{S('This profile is visible to signed-in family members.', 'මෙම පැතිකඩ පවුලේ සාමාජිකයින්ට පමණි.')}</p>") +
-                    (f"<p>{S('Parents', 'දෙමාපියන්')}: {rel(g['parents'].get(p.id, []))}</p>" if g["parents"].get(p.id) else "") +
-                    (f"<p>{S('Spouse', 'කලත්‍රයා')}: {rel([s for s, _ in g['spouses'].get(p.id, [])])}</p>" if g["spouses"].get(p.id) else "") +
-                    (f"<p>{S('Children', 'දරුවන්')}: {rel(g['children'].get(p.id, []))}</p>" if g["children"].get(p.id) else "") + "</article>")
-            desc = ((p.bio_en or "")[:200] if det and p.bio_en else
-                    f"{p.name_en}{(' (' + years + ')') if years else ''}, generation {p.generation} of the Iddawela family of Pilimathalawa, Sri Lanka.")
-            return render(request, f"/people/{p.slug}", f"{name}{(' (' + years + ')') if years else ''}", desc, body, lang,
-                          [person_ld(p, g), crumbs([("Home", "/"), ("Family tree", "/tree"), (p.name_en, f"/people/{p.slug}")])],
-                          image=media_url(p.photo_id, "m") if det and p.photo_id else None, otype="profile")
+        if not p or not deceased(p):
+            return members_only(request, "/people/" + parts[1], lang)
+        name = p.name_si if lang == "si" and p.name_si else p.name_en
+        years = f"{p.birth_year or ''}–{p.death_year or ''}" if (p.birth_year or p.death_year) else ""
+        people = g["people"]
+        def rel(ids):
+            ids = [i for i in ids if i in people]
+            named = [f"<a href=\"/people/{people[i].slug}\">{E(people[i].name_en)}</a>" for i in ids if deceased(people[i])]
+            others = sum(1 for i in ids if not deceased(people[i]))
+            if others:
+                named.append(S(ANON_EN, ANON_SI) + (f" ×{others}" if others > 1 else ""))
+            return ", ".join(named)
+        body = (f"<article><h1>{E(name)}</h1>" + (f"<p>{E(years)}</p>" if years else "") + paras(t(p, "bio", lang)) +
+                (f"<p>{S('Parents', 'දෙමාපියන්')}: {rel(g['parents'].get(p.id, []))}</p>" if g["parents"].get(p.id) else "") +
+                (f"<p>{S('Spouse', 'කලත්‍රයා')}: {rel([s for s, _ in g['spouses'].get(p.id, [])])}</p>" if g["spouses"].get(p.id) else "") +
+                (f"<p>{S('Children', 'දරුවන්')}: {rel(g['children'].get(p.id, []))}</p>" if g["children"].get(p.id) else "") + "</article>")
+        desc = ((p.bio_en or "")[:200] if p.bio_en else
+                f"{p.name_en}{(' (' + years + ')') if years else ''}, generation {p.generation} of the Iddawela family of Pilimathalawa, Sri Lanka.")
+        return render(request, f"/people/{p.slug}", f"{name}{(' (' + years + ')') if years else ''}", desc, body, lang,
+                      [person_ld(p, g), crumbs([("Home", "/"), ("Family tree", "/tree"), (p.name_en, f"/people/{p.slug}")])],
+                      image=media_url(p.photo_id, "m") if p.photo_id else None, otype="profile")
     if head == "events":
         if len(parts) > 1:
             e = db.scalar(select(m.Event).where(m.Event.slug == parts[1]))
@@ -277,8 +310,9 @@ def robots():
 def sitemap(db: Session = Depends(get_db)):
     g = graph(db)
     urls = ["/", "/story", "/tree", "/events", "/causes", "/memorial", "/news", "/gallery", "/join", "/ask"]
-    urls += [f"/heritage/{p.slug}" for p in db.scalars(select(m.Page))]
-    urls += [f"/people/{p.slug}" for p in g["people"].values()]
+    from .api.content import members_only_page
+    urls += [f"/heritage/{p.slug}" for p in db.scalars(select(m.Page)) if not members_only_page(p)]
+    urls += [f"/people/{p.slug}" for p in g["people"].values() if deceased(p)]   # never a living relative's page
     urls += [f"/events/{e.slug}" for e in db.scalars(select(m.Event).where(m.Event.status == "published"))]
     urls += [f"/causes/{c.slug}" for c in db.scalars(select(m.Cause).where(m.Cause.status != "draft"))]
     urls += [f"/memorial/{o.slug}" for o in db.scalars(select(m.Obituary).where(m.Obituary.status == "published"))]

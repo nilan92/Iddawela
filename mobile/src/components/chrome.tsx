@@ -4,7 +4,7 @@ import { Link, router, usePathname } from 'expo-router';
 import { Menu, X, User as UserIcon } from './icons';
 import { C, F } from '../lib/theme';
 import { useLang } from '../lib/i18n';
-import { useAuth, isAdmin } from '../lib/auth';
+import { useAuth, isAdmin, webmasterName } from '../lib/auth';
 import { useLayout } from '../lib/hooks';
 import { Container, Lotus, Liyawela, Small, Btn, Tap } from './ui';
 
@@ -109,6 +109,8 @@ export function Header() {
 
 export function Footer() {
   const { t, lang } = useLang();
+  const { user } = useAuth();
+  const wm = webmasterName(user, lang);   // the webmaster is a living relative: named for members, credited by role in public
   const taps = useRef<number[]>([]);
   const tapLotus = () => {
     const now = Date.now();
@@ -142,7 +144,7 @@ export function Footer() {
         </View>
         <Liyawela width={1000} color="rgba(201,162,74,.5)" />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 }}>
-          <Small color="#8E8270">© {new Date().getFullYear()} {t('org')} · iddawela.com {lang === 'si' ? '2008 සිට' : 'since 2008'} · {lang === 'si' ? 'වෙබ් පරිපාලක: රෝහණ ඉද්දවෙල (2008 සිට)' : 'Webmaster since 2008: Rohana Iddawela'}</Small>
+          <Small color="#8E8270">© {new Date().getFullYear()} {t('org')} · iddawela.com {lang === 'si' ? '2008 සිට' : 'since 2008'} · {wm ? (lang === 'si' ? `වෙබ් පරිපාලක: ${wm} (2008 සිට)` : `Webmaster since 2008: ${wm}`) : (lang === 'si' ? 'පවුලේ වෙබ් පරිපාලක විසින් 2008 සිට නඩත්තු කෙරේ' : 'Kept by the family’s webmaster since 2008')}</Small>
           <Small color="#8E8270">{lang === 'si' ? 'පවුලෙන් පවුලට, පරම්පරාවෙන් පරම්පරාවට.' : 'From family to family, generation to generation.'}</Small>
         </View>
       </Container>

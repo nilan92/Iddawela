@@ -5,6 +5,8 @@ import { Btn, Card, Container, H1, H2, H3, Kicker, Liyawela, Loading, P, Small }
 import { C, F } from '../lib/theme';
 import { L, useLang } from '../lib/i18n';
 import { useApi, useLayout, useTitle } from '../lib/hooks';
+import { useAuth, isMember, webmasterName } from '../lib/auth';
+import { Lock } from '../components/icons';
 
 const TIMELINE: [string, string, string][] = [
   ['1861–1939', 'Ukku Banda Weerakoon, Korale of Bulumulla Walawwa, Kiribathkumbura: father of Lokumenike.', 'කිරිබත්කුඹුරේ බුලුමුල්ලේ වලව්වේ කෝරාළ උක්කු බණ්ඩා වීරකෝන්: ලොකුමැණිකේගේ පියා.'],
@@ -13,7 +15,7 @@ const TIMELINE: [string, string, string][] = [
   ['1906–1932', 'Ukkubanda and Lokumenike raise thirteen children at the Mahagedara, Pilimathalawa.', 'උක්කුබණ්ඩා සහ ලොකුමැණිකේ පිළිමතලාවේ මහගෙදර දරුවන් දහතුන් දෙනෙකු හදා වඩා ගනිති.'],
   ['1932', 'Ukkubanda passes away; the eldest, W.K. Iddawela, becomes a father figure to his siblings.', 'උක්කුබණ්ඩා අභාවප්‍රාප්ත වේ; වැඩිමලා වූ ඩබ්ලිව්.කේ. ඉද්දවෙල සහෝදර සහෝදරියන්ට පිය රුවක් බවට පත්වේ.'],
   ['2 Apr 1995', 'The first annual Iddawela get-together at Kadugannawa: 116 relatives.', 'පළමු වාර්ෂික ඉද්දවෙල හමුව කඩුගන්නාවේදී: ඥාතීන් 116 දෙනෙක්.'],
-  ['5 Jul 2008', 'Rohana Iddawela registers iddawela.com and builds the family’s first website.', 'රෝහණ ඉද්දවෙල iddawela.com ලියාපදිංචි කර පවුලේ පළමු වෙබ් අඩවිය නිර්මාණය කරයි.'],
+  ['5 Jul 2008', '{webmaster} registers iddawela.com and builds the family’s first website.', '{webmaster} iddawela.com ලියාපදිංචි කර පවුලේ පළමු වෙබ් අඩවිය නිර්මාණය කරයි.'],
   ['2019', 'The 25th Hamuwa at Nugawela Aluth Walauwa: 135 relatives.', '25 වන හමුව නුගවෙල අලුත් වලව්වේදී: ඥාතීන් 135 දෙනෙක්.'],
   ['2026', 'A new iddawela.com: a living family tree every family can keep up to date.', 'නව iddawela.com: සෑම පවුලකටම යාවත්කාලීන කළ හැකි සජීවී පවුල් ගසක්.'],
 ];
@@ -22,6 +24,9 @@ export default function Story() {
   const { t, lang } = useLang();
   const { wide } = useLayout();
   const { data } = useApi<any[]>('/api/pages');
+  const { user } = useAuth();
+  // the webmaster is a living relative, so the public sees the role and members see the name
+  const wm = webmasterName(user, lang) || (lang === 'si' ? 'පවුලේ වෙබ් පරිපාලක' : 'The family’s webmaster');
   useTitle(t('story'));
   return (
     <Screen>
@@ -43,7 +48,7 @@ export default function Story() {
               {i < TIMELINE.length - 1 ? <View style={{ width: 2, flex: 1, backgroundColor: C.line }} /> : null}
             </View>
             <View style={{ flex: 1, paddingBottom: 34 }}>
-              <P style={{ fontSize: 17.5 }}>{lang === 'si' ? si : en}</P>
+              <P style={{ fontSize: 17.5 }}>{(lang === 'si' ? si : en).replace('{webmaster}', wm)}</P>
             </View>
           </View>
         ))}
@@ -58,6 +63,7 @@ export default function Story() {
                 <Card key={pg.slug} href={`/heritage/${pg.slug}`} style={{ width: wide ? '32%' : '100%', gap: 8, minHeight: 120 }}>
                   <Small color={pg.section === 'weerakoon' ? C.paddy : C.lacquer}>{pg.section === 'weerakoon' ? (lang === 'si' ? 'මව් පාර්ශ්වය' : 'Maternal line') : (lang === 'si' ? 'උරුමය' : 'Heritage')}</Small>
                   <H3>{L(pg, 'title', lang)}</H3>
+                  {pg.members_only && !isMember(user) ? <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}><Lock size={13} color={C.stone} /><Small color={C.stone}>{t('membersOnly')}</Small></View> : null}
                 </Card>
               ))}
             </View>

@@ -12,7 +12,7 @@ from ..db import get_db
 from .. import models as m
 from ..config import ANTHROPIC_API_KEY, OPENAI_API_KEY, AI_MODEL
 from ..security import current_user_optional, rate_limit
-from ..family import graph, show_details
+from ..family import graph, show_details, level, redact_text
 
 r = APIRouter(prefix="/api", tags=["ask"])
 WORD = re.compile(r"[\w\u0D80-\u0DFF]+", re.UNICODE)
@@ -23,8 +23,12 @@ def toks(s):
 
 def docs(db, user):
     g = graph(db)
+    from .content import members_only_page
+    public = level(user) == "public"
     out = []
     for p in db.scalars(select(m.Page)):
+        if public and members_only_page(p):
+            continue
         for i, chunk in enumerate(re.split(r"\n\s*\n", p.body_en or "")):
             if chunk.strip():
                 out.append(dict(title=p.title_en, url=f"/heritage/{p.slug}", text=chunk.strip()[:1600]))
@@ -36,6 +40,8 @@ def docs(db, user):
         out.append(dict(title=p.name_en, url=f"/people/{p.slug}", text=(head + " " + (p.bio_en or ""))[:1800]))
     for e in db.scalars(select(m.Event)):
         out.append(dict(title=e.title_en, url=f"/events/{e.slug}", text=f"{e.title_en}. {e.starts_on or ''} at {e.venue or ''}. Sponsor: {e.sponsor or '-'}. Attendance: {e.attendance or '-'}. {(e.body_en or '')[:1200]}"))
+    if public:   # the archive never hands living relatives' names to a signed-out visitor (or to the model answering them)
+        out = [dict(d, title=redact_text(d["title"], g), text=redact_text(d["text"], g)) for d in out]
     return out
 
 def search(db, user, q, k=6):

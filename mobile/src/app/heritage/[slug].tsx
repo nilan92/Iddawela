@@ -6,6 +6,7 @@ import { Btn, Container, ErrorBox, H1, Kicker, Liyawela, Loading, Notice, Prose 
 import { C } from '../../lib/theme';
 import { L, useLang } from '../../lib/i18n';
 import { useApi, useLayout, useTitle } from '../../lib/hooks';
+import MembersOnlyScreen, { isMembersOnly } from '../../components/MembersOnly';
 
 export default function Heritage() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -13,6 +14,7 @@ export default function Heritage() {
   const { wide } = useLayout();
   const { data: p, error } = useApi<any>(`/api/pages/${slug}`);
   useTitle(p ? L(p, 'title', lang) : t('story'));
+  if (isMembersOnly(error)) return <MembersOnlyScreen />;
   if (error) return <Screen><ErrorBox msg={error} /></Screen>;
   if (!p) return <Screen><Loading /></Screen>;
   const body = lang === 'si' ? p.body_si || p.body_en : p.body_en;

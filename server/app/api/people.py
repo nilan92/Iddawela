@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from .. import models as m
 from ..security import current_user_optional, approved_member, current_user, admin_user
-from ..family import graph, card, full, can_manage, is_own, bump, deceased, media_url, show_details
+from ..family import graph, card, full, can_manage, is_own, bump, deceased, media_url, show_details, level
 from ..util import unique_slug, parse_date, to_int
 from ..media import process_image
 
@@ -23,7 +23,7 @@ def tree(user=Depends(current_user_optional), db: Session = Depends(get_db)):
     g = graph(db)
     nodes = []
     for p in g["people"].values():
-        c = card(p, user, g)
+        c = card(p, user, g)   # living people come back as anonymous "Family member" nodes to the public
         c["spouse_ids"] = [s for s, _ in g["spouses"].get(p.id, [])]
         c["parent_ids"] = g["parents"].get(p.id, [])
         c["sibling_order"] = p.sibling_order
@@ -34,8 +34,11 @@ def tree(user=Depends(current_user_optional), db: Session = Depends(get_db)):
 def people(q: str = "", branch: int | None = None, limit: int = 40, user=Depends(current_user_optional), db: Session = Depends(get_db)):
     g = graph(db)
     ql = q.strip().lower()
+    public = level(user) == "public"
     out = []
     for p in g["people"].values():
+        if public and not deceased(p):   # the public can only list and search ancestors who have passed
+            continue
         if branch and p.branch_no != branch:
             continue
         if ql and ql not in (p.name_en or "").lower() and ql not in (p.name_si or "") and ql not in (p.known_as or "").lower():
@@ -46,6 +49,11 @@ def people(q: str = "", branch: int | None = None, limit: int = 40, user=Depends
 
 @r.get("/people/{key}")
 def person(key: str, user=Depends(current_user_optional), db: Session = Depends(get_db)):
+    if level(user) == "public":
+        # one answer for "living" and "no such person", so a slug can't be used to test who is on the tree
+        p = db.get(m.Person, int(key)) if str(key).isdigit() else db.scalar(select(m.Person).where(m.Person.slug == key))
+        if not p or p.status != "approved" or not deceased(p):
+            raise HTTPException(401, "members_only")
     p = get_person(db, key)
     return full(p, user, graph(db), db)
 

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Link, router } from 'expo-router';
 import AuthShell from '../components/AuthShell';
-import PersonPicker from '../components/PersonPicker';
 import { Btn, Field, Notice, P, Small } from '../components/ui';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -16,14 +15,13 @@ export default function Join() {
   const { signIn } = useAuth();
   const { mid } = useLayout();
   const [f, setF] = useState({ name: '', email: '', phone: '', password: '', note: '' });
-  const [me, setMe] = useState<any>(null);
   const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false);
   const set = (k: string) => (v: string) => setF((o) => ({ ...o, [k]: v }));
   useTitle(T('Join the family', 'පවුලට එක්වන්න'));
   const submit = async () => {
     setErr(null); setBusy(true);
     try {
-      const r = await api('/api/auth/register', { body: { ...f, person_id: me?.id || null, lang } });
+      const r = await api('/api/auth/register', { body: { ...f, person_id: null, lang } });
       signIn(r.token, r.user); router.replace('/me');
     } catch (e: any) { setErr(e.message); }
     setBusy(false);
@@ -40,9 +38,7 @@ export default function Join() {
         <Field style={half} label={T('Phone (optional)', 'දුරකථනය (අත්‍යවශ්‍ය නැත)')} value={f.phone} onChangeText={set('phone')} keyboardType="phone-pad" autoComplete="tel" />
       </View>
       <Field label={T('Password', 'මුරපදය')} value={f.password} onChangeText={set('password')} secure autoComplete="new-password" hint={T('At least 8 characters.', 'අවම අකුරු 8ක්.')} />
-      <PersonPicker label={T('Are you already on the tree? Find yourself', 'ඔබ දැනටමත් ගසේ සිටීද? ඔබව සොයන්න')} value={me} onChange={setMe}
-        placeholder={T('Type your name…', 'ඔබේ නම ටයිප් කරන්න…')} />
-      <Field label={T('How are you related? (helps the admin approve you)', 'ඔබ සම්බන්ධ වන්නේ කෙසේද?')} value={f.note} onChangeText={set('note')} multiline
+      <Field label={T('How are you related? Name your parents and grandparents; a family admin links you to your place on the tree', 'ඔබ සම්බන්ධ වන්නේ කෙසේද? ඔබේ දෙමාපියන් සහ සීයා/ආච්චි නම් කරන්න; පවුලේ පරිපාලකයෙක් ඔබව ගසේ ඔබේ ස්ථානයට සම්බන්ධ කරයි')} value={f.note} onChangeText={set('note')} multiline
         placeholder={T('e.g. Grandson of Abey Iddawela, son of …', 'උදා: ඒබේ ඉද්දවෙලගේ මුණුබුරා…')} />
       <Btn label={T('Create my account', 'ගිණුම සාදන්න')} onPress={submit} loading={busy} disabled={!f.name || !f.password || (!f.email && !f.phone)} />
       <Small color={C.stone}>{T('Until approved you can browse the public site; your details are never shown publicly without your say.', 'අනුමත වන තුරු ඔබට පොදු අඩවිය බැලිය හැක.')}</Small>

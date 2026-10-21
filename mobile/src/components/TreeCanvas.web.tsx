@@ -155,9 +155,10 @@ const TreeCanvas = forwardRef<CanvasHandle, Props>(function TreeCanvas(p, ref) {
             <clipPath id={'cp' + id}><circle cx={x + 34} cy={c.y} r={21} /></clipPath>
             <circle cx={x + 34} cy={c.y} r={23} fill={n.deceased ? C.ink2 : C.sand} stroke={col} strokeWidth={2} />
             {n.photo ? <image href={n.photo} x={x + 13} y={c.y - 21} width={42} height={42} clipPath={`url(#cp${id})`} preserveAspectRatio="xMidYMid slice" />
+              : n.anonymous ? <g opacity={0.6}><circle cx={x + 34} cy={c.y - 5} r={6} fill={col} /><path d={`M${x + 22} ${c.y + 14} q12 -14 24 0 z`} fill={col} /></g>
               : <text x={x + 34} y={c.y + 6} textAnchor="middle" fontSize={16} className="nm" fill={n.deceased ? C.goldSoft : col} fontWeight={600}>{(n.name_en.match(/\b[A-Z]/g) || ['?']).slice(-2).join('')}</text>}
             <text x={x + 64} y={c.y - 4} fontSize={13.5} className="nm" fill={C.ink} fontWeight={600}>{short(label(n, p.lang), 15)}</text>
-            <text x={x + 64} y={c.y + 14} fontSize={11} fill={C.stone}>{yrs(n) || (n.is_descendant ? '' : p.lang === 'si' ? 'විවාහයෙන්' : 'by marriage')}{n.deceased ? ' ✦' : ''}</text>
+            <text x={x + 64} y={c.y + 14} fontSize={11} fill={C.stone}>{n.anonymous ? (p.lang === 'si' ? 'සාමාජිකයින්ට පමණි' : 'Members only') : (yrs(n) || (n.is_descendant ? '' : p.lang === 'si' ? 'විවාහයෙන්' : 'by marriage'))}{n.deceased ? ' ✦' : ''}</text>
             {i === 0 && q.hasHidden ? (
               <g onClick={(e) => { e.stopPropagation(); if ((wrap.current as any)?._moved > 6) return; p.onToggle(id); }}>
                 <circle cx={q.partners.length ? x + CW + 4 : c.x} cy={y + CH + 14} r={12} fill={col} />
@@ -204,7 +205,7 @@ const TreeCanvas = forwardRef<CanvasHandle, Props>(function TreeCanvas(p, ref) {
           {n.photo && r >= 11 ? <image href={n.photo} x={c.x - r} y={c.y - r} width={r * 2} height={r * 2} clipPath={`url(#cp${q.id})`} preserveAspectRatio="xMidYMid slice" /> : null}
           {q.depth === 1 && !n.photo ? <text x={c.x} y={c.y + 7} textAnchor="middle" fontSize={20} className="nm" fill={n.deceased ? C.goldSoft : col} fontWeight={700}>{n.sibling_order}</text> : null}
           {q.hasHidden ? <circle cx={c.x + Math.cos(a) * (r + 3)} cy={c.y + Math.sin(a) * (r + 3)} r={5} fill={col} /> : null}
-          {q.depth === 1 ? (
+          {n.anonymous ? null : q.depth === 1 ? (
             <text className="nm lbl-d1" x={c.x + Math.cos(a) * (r + 12)} y={c.y + Math.sin(a) * (r + 12)} dominantBaseline="middle" textAnchor={flip ? 'end' : 'start'}
               transform={`rotate(${flip ? deg + 180 : deg} ${c.x + Math.cos(a) * (r + 12)} ${c.y + Math.sin(a) * (r + 12)})`} fontSize={30} fill={C.goldSoft} fontWeight={600}>
               {short(label(n, p.lang).replace(' Iddawela', '').replace(' ඉද්දවෙල', ''), 14)}
@@ -225,7 +226,7 @@ const TreeCanvas = forwardRef<CanvasHandle, Props>(function TreeCanvas(p, ref) {
       const narrow = typeof window !== 'undefined' && window.innerWidth < 700;
       const anchor = narrow ? 'middle' : cx > 0.25 ? 'end' : cx < -0.25 ? 'start' : 'middle';  // read inward so labels never leave the canvas
       const nmTxt = short(label(n, p.lang).replace(' Iddawela', '').replace(' ඉද්දවෙල', ''), 22);
-      const txt = `${n.sibling_order ? `${n.sibling_order} · ` : ''}${nmTxt}`;
+      const txt = n.anonymous ? `${n.sibling_order || ''}` : `${n.sibling_order ? `${n.sibling_order} · ` : ''}${nmTxt}`;
       perim.push(narrow ? (
         <g key={'p' + q.id} className={'plbl' + (dimmed(n) ? ' dim' : '')} data-x={px} data-y={py} data-w={30} data-h={30} data-a="middle" transform={`translate(${px},${py})`} onClick={click(q.id)} role="button" aria-label={n.name_en}>
           <circle r={14} fill={C.ink} stroke={bc(n.branch_no)} strokeWidth={2.5} />

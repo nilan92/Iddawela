@@ -26,7 +26,15 @@ def user_out(u: m.User, db):
     g = graph(db)
     p = g["people"].get(u.person_id) if u.person_id else None
     return {"id": u.id, "name": u.name, "email": u.email, "phone": u.phone, "role": u.role, "status": u.status,
-            "person": card(p, u, g) if p else None, "branch_person_id": u.branch_person_id, "lang": u.lang}
+            "person": card(p, u, g) if p else None, "branch_person_id": u.branch_person_id, "lang": u.lang,
+            "webmaster": webmaster(u, g)}
+
+def webmaster(u, g):
+    """The site's long-time webmaster is a living relative, so his name reaches members only (never the public bundle)."""
+    if u.status != "approved":
+        return None
+    w = next((x for x in g["people"].values() if x.slug == "rohana-iddawela"), None)
+    return {"en": w.name_en, "si": w.name_si or w.name_en} if w else None
 
 class RegisterIn(BaseModel):
     name: str

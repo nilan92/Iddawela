@@ -9,7 +9,8 @@ import { nm, useLang, years } from '../lib/i18n';
 import { useApi, useLayout, useTitle } from '../lib/hooks';
 import { index, N } from '../lib/treeLayout';
 import { relation, path as kinPath } from '../lib/kinship';
-import { useAuth } from '../lib/auth';
+import { useAuth, isMember } from '../lib/auth';
+import { Lock } from '../components/icons';
 
 export default function TreeScreen() {
   const { t, lang } = useLang();
@@ -31,6 +32,7 @@ export default function TreeScreen() {
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
   const canvas = useRef<CanvasHandle>(null);
   const me = user?.person?.id as number | undefined;
+  const member = isMember(user);
 
   // classic view starts folded at the grandchildren so it opens readable
   useEffect(() => {
@@ -59,9 +61,17 @@ export default function TreeScreen() {
   const rel = useMemo(() => (relA && sel && relA !== sel ? relation(relA, sel, byId as any) : null), [relA, sel, byId]);
   const results = useMemo(() => {
     const s = q.trim().toLowerCase(); if (s.length < 2) return [];
-    return nodes.filter((n) => n.name_en.toLowerCase().includes(s) || (n.name_si || '').includes(q.trim())).slice(0, 8);
+    return nodes.filter((n) => !n.anonymous).filter((n) => n.name_en.toLowerCase().includes(s) || (n.name_si || '').includes(q.trim())).slice(0, 8);
   }, [q, nodes]);
   const selected = sel ? byId.get(sel) : null;
+  // named relatives first; the public sees living relatives only as a count
+  const names = (ids: number[], first: boolean) => {
+    const ns = ids.map((i) => byId.get(i)).filter(Boolean) as N[];
+    const shown = ns.filter((n) => !n.anonymous).map((n) => (first ? nm(n, lang).split(' ')[0] : nm(n, lang)));
+    const hidden = ns.length - shown.length;
+    if (hidden) shown.push(hidden === 1 ? t('familyMember') : `${hidden} ${lang === 'si' ? 'පවුලේ සාමාජිකයින්' : 'family members'}`);
+    return shown.join(', ');
+  };
   const A = relA ? byId.get(relA) : null;
   const thirteen = useMemo(() => nodes.filter((n) => n.generation === 2 && n.is_descendant && n.branch_no).sort((a, b) => (a.branch_no || 0) - (b.branch_no || 0)), [nodes]);
 
@@ -81,7 +91,7 @@ export default function TreeScreen() {
           <View style={[glass, { flex: 1, minWidth: 240, maxWidth: 440 }, shadow]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14 }}>
               <Search size={18} color={dark ? C.goldSoft : C.stone} />
-              <TextInput value={q} onChangeText={setQ} placeholder={relMode ? t('pickPerson') : lang === 'si' ? 'නමක් සොයන්න…' : 'Search 370+ relatives…'} placeholderTextColor={dark ? '#9C8F7B' : C.mute}
+              <TextInput value={q} onChangeText={setQ} placeholder={relMode ? t('pickPerson') : !member ? t('searchAncestors') : lang === 'si' ? 'නමක් සොයන්න…' : 'Search 370+ relatives…'} placeholderTextColor={dark ? '#9C8F7B' : C.mute}
                 accessibilityLabel={t('search')} style={{ flex: 1, paddingVertical: 12, paddingHorizontal: 10, fontFamily: F.body, fontSize: 16, color: fg, outlineStyle: 'none' } as any} />
               {q ? <Pressable onPress={() => setQ('')}><X size={18} color={fg} /></Pressable> : null}
             </View>
@@ -113,7 +123,7 @@ export default function TreeScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }} style={{ flexGrow: 0 }}>
           <Chip label={t('all')} active={!branch} onPress={() => setBranch(null)} />
           {thirteen.map((n) => (
-            <Chip key={n.id} label={`${n.branch_no}. ${nm(n, lang).replace(/ Iddawela| ඉද්දවෙල/, '')}`} color={branchColor(n.branch_no)} active={branch === n.branch_no}
+            <Chip key={n.id} label={n.anonymous ? `${t('branch')} ${n.branch_no}` : `${n.branch_no}. ${nm(n, lang).replace(/ Iddawela| ඉද්දවෙල/, '')}`} color={branchColor(n.branch_no)} active={branch === n.branch_no}
               onPress={() => { setBranch(branch === n.branch_no ? null : n.branch_no!); if (branch !== n.branch_no) focus(n.id); }} />
           ))}
         </ScrollView>
@@ -125,6 +135,17 @@ export default function TreeScreen() {
           <Pressable key={l} onPress={fn} accessibilityLabel={l} style={{ padding: 10 }}><I size={20} color={fg} /></Pressable>
         ))}
       </View>
+      {!member && !selected ? (
+        <Pressable onPress={() => router.push('/login')} accessibilityRole="link" accessibilityLabel={t('treeLoginPrompt')}
+          style={[glass, shadow, { position: 'absolute', left: 14, right: 76, bottom: 18, maxWidth: 420, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14 }]}>
+          <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' }}><Lock size={16} color={C.ink} /></View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={{ fontFamily: F.body, fontWeight: '700', fontSize: 14.5, color: fg }}>{t('treeLoginPrompt')}</Text>
+            <Small color={dark ? '#B9AC95' : C.stone}>{lang === 'si' ? 'ජීවත්ව සිටින ඥාතීන් පෙන්වන්නේ “පවුලේ සාමාජිකයෙක්” ලෙසයි.' : 'Living relatives show as “Family member”.'}</Small>
+          </View>
+          <ArrowRight size={18} color={C.gold} />
+        </Pressable>
+      ) : null}
       {me && !selected ? (
         <View style={{ position: 'absolute', left: 14, bottom: 18 }}>
           <Btn small label={lang === 'si' ? 'මාව පෙන්වන්න' : 'Show me'} onPress={() => focus(me)} />
@@ -153,12 +174,16 @@ export default function TreeScreen() {
               <Small color={branchColor(selected.branch_no)}>{selected.branch_no ? `${t('branch')} ${selected.branch_no}` : ''}{selected.generation != null ? ` · ${t('generation')} ${selected.generation}` : ''}</Small>
             </View>
           </View>
-          {selected.spouse_ids.length ? <Small color={dark ? '#CDBFA8' : C.ink2}>∞ {selected.spouse_ids.map((s) => nm(byId.get(s), lang)).join(', ')}</Small> : null}
-          {kids.get(selected.id)?.length ? <Small color={dark ? '#CDBFA8' : C.ink2}>{t('children')}: {kids.get(selected.id)!.map((c) => nm(byId.get(c), lang).split(' ')[0]).join(', ')}</Small> : null}
+          {selected.anonymous ? null : <>
+          {selected.spouse_ids.length ? <Small color={dark ? '#CDBFA8' : C.ink2}>∞ {names(selected.spouse_ids, false)}</Small> : null}
+          {kids.get(selected.id)?.length ? <Small color={dark ? '#CDBFA8' : C.ink2}>{t('children')}: {names(kids.get(selected.id)!, true)}</Small> : null}
+          </>}
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-            <Btn small label={lang === 'si' ? 'පැතිකඩ' : 'Open profile'} href={`/people/${selected.slug}`} icon={<ArrowRight size={15} color={C.ink} />} />
-            <Btn small variant={dark ? 'light' : 'outline'} label={relMode ? t('pickPerson') : t('howRelated')} icon={<Link2 size={15} color={fg} />}
-              onPress={() => { if (me && me !== selected.id && !relA) { setRelA(me); return; } setRelA(selected.id); setRelMode(true); }} />
+            {selected.anonymous
+              ? <Btn small label={t('signin')} href="/login" icon={<Lock size={15} color={C.ink} />} />
+              : <Btn small label={lang === 'si' ? 'පැතිකඩ' : 'Open profile'} href={`/people/${selected.slug}`} icon={<ArrowRight size={15} color={C.ink} />} />}
+            {member ? <Btn small variant={dark ? 'light' : 'outline'} label={relMode ? t('pickPerson') : t('howRelated')} icon={<Link2 size={15} color={fg} />}
+              onPress={() => { if (me && me !== selected.id && !relA) { setRelA(me); return; } setRelA(selected.id); setRelMode(true); }} /> : null}
           </View>
           {relMode ? <Small color={C.gold}>{lang === 'si' ? 'දැන් ගසේ හෝ සෙවුමෙන් දෙවන පුද්ගලයා තෝරන්න.' : 'Now tap a second person on the tree, or search for them.'}</Small> : null}
         </View>

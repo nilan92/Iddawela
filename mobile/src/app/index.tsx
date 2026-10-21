@@ -112,13 +112,13 @@ export default function Home() {
               {data.thirteen.map((p: any) => {
                 const bc = branchColor(p.branch_no);
                 return (
-                  <Card key={p.id} href={`/people/${p.slug}`} style={{ width: wide ? '23.6%' : mid ? '48.5%' : '100%', padding: 16, borderTopWidth: 4, borderTopColor: bc }}>
+                  <Card key={p.id} href={p.anonymous ? '/login' : `/people/${p.slug}`} style={{ width: wide ? '23.6%' : mid ? '48.5%' : '100%', padding: 16, borderTopWidth: 4, borderTopColor: bc }}>
                     <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
                       <Avatar person={p} size={58} />
                       <View style={{ flex: 1, gap: 2 }}>
                         <Text style={{ fontFamily: F.display, color: bc, fontSize: 13, fontWeight: '700' }}>{p.branch_no < 10 ? '0' : ''}{p.branch_no}</Text>
                         <H3 numberOfLines={1} style={{ fontSize: 19 }}>{nm(p, lang)}</H3>
-                        <Small numberOfLines={1}>{years(p)}{p.spouse?.[0] ? ` · m. ${nm(p.spouse[0], lang)}` : ''}</Small>
+                        <Small numberOfLines={1}>{p.anonymous ? t('membersOnly') : `${years(p)}${p.spouse?.[0] && !p.spouse[0].anonymous ? ` · m. ${nm(p.spouse[0], lang)}` : ''}`}</Small>
                       </View>
                     </View>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
@@ -172,7 +172,7 @@ export default function Home() {
             <Kicker>{t('onThisDay')}</Kicker>
             <Card style={{ gap: 4, padding: 8 }}>
               {(data?.onthisday?.today || []).concat(data?.onthisday?.this_year || []).slice(0, 7).map((x: any, i: number) => (
-                <Tap key={i} href={`/people/${x.person.slug}`} style={(hovered) => ({ flexDirection: 'row', gap: 12, alignItems: 'center', padding: 10, borderRadius: 14, backgroundColor: hovered ? C.parchment : 'transparent' })}>
+                <Tap key={i} href={x.person.anonymous ? '/login' : `/people/${x.person.slug}`} style={(hovered) => ({ flexDirection: 'row', gap: 12, alignItems: 'center', padding: 10, borderRadius: 14, backgroundColor: hovered ? C.parchment : 'transparent' })}>
                     <Avatar person={x.person} size={44} />
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontFamily: F.display, fontSize: 17, color: C.ink }} numberOfLines={1}>{nm(x.person, lang)}</Text>

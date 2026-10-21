@@ -1,4 +1,5 @@
 """In-memory view of the family graph + privacy-aware serializers."""
+import re
 import threading
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -77,8 +78,14 @@ def level(user):
 def media_url(mid, size="m"):
     return f"/media/{mid}/{size}.webp" if mid else None
 
+def hidden(p, user) -> bool:
+    """Living people are never identifiable to the public (signed-out or not yet approved): no name, photo, slug or dates."""
+    return level(user) == "public" and not deceased(p)
+
 def show_details(p, user, g=None) -> bool:
     lv = level(user)
+    if lv == "public":
+        return deceased(p)
     if deceased(p) or p.privacy == "public":
         return True
     if lv == "admin" or is_own(user, p.id):
@@ -91,7 +98,17 @@ def show_contacts(p, user, g=None) -> bool:
         return True
     return lv == "member" and p.privacy != "private" and not deceased(p)
 
+ANON_EN, ANON_SI = "Family member", "පවුලේ සාමාජිකයෙක්"
+
+def anon_card(p):
+    """What the public sees of a living person: a place in the tree's shape and nothing that names them."""
+    return {"id": p.id, "slug": None, "name_en": ANON_EN, "name_si": ANON_SI, "known_as": None, "gender": None,
+            "generation": p.generation, "branch_no": p.branch_no, "is_descendant": p.is_descendant, "deceased": False,
+            "birth_year": None, "death_year": None, "photo": None, "restricted": True, "anonymous": True}
+
 def card(p, user, g=None):
+    if hidden(p, user):
+        return anon_card(p)
     det = show_details(p, user, g)
     d = {
         "id": p.id, "slug": p.slug, "name_en": p.name_en, "name_si": p.name_si, "known_as": p.known_as,
@@ -153,3 +170,75 @@ def full(p, user, g, db):
         chain.append(mini(cur))
     d["lineage"] = chain
     return d
+
+
+# ---------- public redaction of free text (story pages, events, captions, memorial pages, bios) ----------
+PLACEHOLDER_EN, PLACEHOLDER_SI = "[family member]", "[පවුලේ සාමාජිකයෙක්]"
+SI = "\u0D80-\u0DFF\u200c\u200d"
+_red = {"ver": -1, "rx": None}
+_SI_SUFFIX = "(?:ගේ|ට|ගෙන්|ගෙ|යි|ව|ද|වන්)?"
+_NOT_NAME_AFTER = r"(?!\s+(?:College|Vidyalaya|Vidyalayaya|Balika|Maha|Road|Mawatha|Hospital|Hall|Temple|Vihara))"
+
+def _tokens(s):
+    return [x for x in (y.strip("(),.\"'") for y in re.split(r"\s+", (s or "").strip())) if x]
+
+def _redactor(g):
+    """One regex over every living person's names: full names (EN/SI/known as), and first names that no deceased
+    person shares, carrying any following surname tokens and a bare birth year with them."""
+    with _lock:
+        if _red["ver"] == _version[0] and _red.get("gid") == id(g):
+            return _red["rx"]
+    people = g["people"].values()
+    dead_tok, later_tok, full, firsts, surn = set(), set(), set(), set(), set()
+    for p in people:
+        for f in ("name_en", "name_si", "known_as"):
+            tt = _tokens(getattr(p, f, None))
+            if deceased(p):
+                dead_tok |= set(tt)
+            later_tok |= set(tt[1:])
+    dead_full = {(getattr(p, f, None) or "").strip() for p in people if deceased(p) for f in ("name_en", "name_si", "known_as")}
+    for p in people:
+        if deceased(p):
+            continue
+        for f in ("name_en", "name_si", "known_as"):
+            v = (getattr(p, f, None) or "").strip()
+            tt = _tokens(v)
+            if len(v) >= 4 and v not in dead_full and (len(tt) > 1 or v not in dead_tok):
+                full.add(v)
+            if tt:
+                first = tt[0].strip("(),.\"'")
+                if len(first) >= 3 and first not in dead_tok and first not in later_tok and not re.fullmatch(r"[A-Z]{1,3}\.?", first):
+                    firsts.add(first)
+                surn |= {x.strip("(),.\"'") for x in tt[1:] if len(x.strip("(),.\"'")) >= 3}
+    alt = lambda xs: "|".join(re.escape(x) for x in sorted(xs, key=len, reverse=True) if x)
+    b0, b1 = rf"(?<![\w{SI}])", rf"(?![\w{SI}])"
+    sur = rf"(?:\s+(?:{alt(surn)}){b1})*" if surn else ""
+    year = r"(?:\s*\((?:b\.\s*)?\d{4}(?:\s*[-–]\s*)?\))?"
+    parts = []
+    if full:
+        parts.append(rf"{b0}(?:{alt(full)}){sur}{_SI_SUFFIX}{b1}{year}")
+    if firsts:
+        parts.append(rf"{b0}(?:{alt(firsts)}){_NOT_NAME_AFTER}{sur}{_SI_SUFFIX}{b1}{year}")
+    rx = re.compile("|".join(parts)) if parts else None
+    with _lock:
+        _red.update(ver=_version[0], gid=id(g), rx=rx)
+    return rx
+
+def _ph(mt):
+    return PLACEHOLDER_SI if re.search(f"[{SI}]", mt.group(0)) else PLACEHOLDER_EN
+
+def redact_text(s, g):
+    if not s or not isinstance(s, str):
+        return s
+    rx = _redactor(g)
+    return rx.sub(_ph, s) if rx else s
+
+def scrub(obj, g):
+    """Redact living people's names from every string in a JSON-able value (used for signed-out responses)."""
+    if isinstance(obj, str):
+        return redact_text(obj, g)
+    if isinstance(obj, list):
+        return [scrub(x, g) for x in obj]
+    if isinstance(obj, dict):
+        return {k: (v if k in ("slug", "src", "thumb", "photo", "photo_large", "cover", "url", "map_url", "link", "hometown", "birthplace") else scrub(v, g)) for k, v in obj.items()}
+    return obj

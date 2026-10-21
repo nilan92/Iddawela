@@ -1,7 +1,7 @@
 export type N = {
   id: number; slug: string; name_en: string; name_si?: string; gender?: string | null; generation?: number | null; branch_no?: number | null;
   is_descendant: boolean; deceased: boolean; birth_year?: number | null; death_year?: number | null; photo?: string | null;
-  parent_ids: number[]; spouse_ids: number[]; sibling_order?: number | null; restricted?: boolean;
+  parent_ids: number[]; spouse_ids: number[]; sibling_order?: number | null; restricted?: boolean; anonymous?: boolean;
 };
 export type Placed = { id: number; x: number; y: number; angle?: number; partners: number[]; depth: number; hasHidden?: boolean };
 export type Link = { from: number; to: number };

@@ -101,6 +101,15 @@ export function Avatar({ person, size = 56, ring = true }: { person: any; size?:
   const initials = (person?.name_en || name).replace(/\(.*?\)/g, '').split(/\s+/).filter((w: string) => /^[A-Za-z]/.test(w)).slice(0, 2).map((w: string) => w[0]).join('').toUpperCase() || name[0];
   const bc = branchColor(person?.branch_no);
   const src = mediaUrl(person?.photo);
+  if (person?.anonymous) {
+    return (
+      <View style={{ width: size, height: size, borderRadius: size / 2, padding: ring ? 2 : 0, backgroundColor: ring ? bc : 'transparent' }}>
+        <View accessibilityLabel={name} style={{ flex: 1, borderRadius: size, backgroundColor: C.parchment, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,.06)', overflow: 'hidden' }}>
+          <Svg width={size * 0.56} height={size * 0.56} viewBox="0 0 24 24"><Circle cx={12} cy={8} r={4.2} fill={bc} fillOpacity={0.55} /><Path d="M3.5 22c.9-4.6 4.3-7.2 8.5-7.2s7.6 2.6 8.5 7.2z" fill={bc} fillOpacity={0.55} /></Svg>
+        </View>
+      </View>
+    );
+  }
   return (
     <View style={{ width: size, height: size, borderRadius: size / 2, padding: ring ? 2 : 0, backgroundColor: ring ? bc : 'transparent' }}>
       {src ? (

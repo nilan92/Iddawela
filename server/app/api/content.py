@@ -8,7 +8,7 @@ from ..db import get_db
 from .. import models as m
 from ..config import MEDIA_DIR
 from ..security import current_user_optional, approved_member, current_user, rate_limit, is_admin
-from ..family import graph, card, deceased, media_url, show_details, level
+from ..family import graph, card, deceased, media_url, show_details, level, hidden
 from ..util import unique_slug, parse_date, to_int
 
 r = APIRouter(tags=["content"])
@@ -68,15 +68,26 @@ def clean_caption(s):
     return _re.sub(r"\s*\[fb:\d+\]", "", s).strip() if s else s
 
 # ---------------- pages ----------------
+# Registers of named living relatives (the Weerakoon family lists with birth dates, homes and "alive" columns, and the
+# wedding list with who is whose daughter) are family-tree data, so they are for signed-in members only.
+MEMBERS_ONLY_SECTIONS = {"weerakoon"}
+MEMBERS_ONLY_PAGES = {"weddings"}
+
+def members_only_page(p) -> bool:
+    return p.section in MEMBERS_ONLY_SECTIONS or p.slug in MEMBERS_ONLY_PAGES
+
 @r.get("/api/pages")
-def pages(db: Session = Depends(get_db)):
-    return [dict(slug=p.slug, title_en=p.title_en, title_si=p.title_si, section=p.section) for p in db.scalars(select(m.Page).order_by(m.Page.sort))]
+def pages(user=Depends(current_user_optional), db: Session = Depends(get_db)):
+    return [dict(slug=p.slug, title_en=p.title_en, title_si=p.title_si, section=p.section, members_only=members_only_page(p))
+            for p in db.scalars(select(m.Page).order_by(m.Page.sort))]
 
 @r.get("/api/pages/{slug}")
-def page(slug: str, db: Session = Depends(get_db)):
+def page(slug: str, user=Depends(current_user_optional), db: Session = Depends(get_db)):
     p = db.scalar(select(m.Page).where(m.Page.slug == slug))
     if not p:
         raise HTTPException(404)
+    if members_only_page(p) and level(user) == "public":
+        raise HTTPException(401, "members_only")
     return dict(slug=p.slug, title_en=p.title_en, title_si=p.title_si, body_en=p.body_en, body_si=p.body_si,
                 body_si_machine=p.body_si_machine, section=p.section, cover=media_url(p.cover_id, "m"))
 
@@ -150,7 +161,7 @@ def obit_out(o, db, user, detail=False):
     d = dict(id=o.id, slug=o.slug, title_en=o.title_en, title_si=o.title_si, published_on=o.published_on.isoformat() if o.published_on else None,
              person=card(p, user, g) if p else None, lamps=db.scalar(select(func.count()).where(m.Condolence.obituary_id == o.id, m.Condolence.lit_lamp.is_(True))) or 0)
     if p:
-        d["photo"] = media_url(p.photo_id, "m") if p.photo_id else None
+        d["photo"] = media_url(p.photo_id, "m") if p.photo_id and show_details(p, user) else None
     if detail:
         d.update(body_en=o.body_en, body_si=o.body_si, funeral_details=o.funeral_details if level(user) != "public" else None)
         d["condolences"] = [dict(id=c.id, name=c.name, message=c.message, lit_lamp=c.lit_lamp, created_at=c.created_at.isoformat())
@@ -332,7 +343,7 @@ def home(user=Depends(current_user_optional), db: Session = Depends(get_db)):
     for p in sorted([p for p in ppl.values() if p.generation == 2 and p.branch_no and p.is_descendant], key=lambda x: x.branch_no):
         c = card(p, user, g)
         c["spouse"] = [card(ppl[s], user, g) for s, _ in g["spouses"].get(p.id, [])][:1]
-        c["hometown"] = p.hometown
+        c["hometown"] = None if hidden(p, user) else p.hometown
         c["descendants"] = sum(1 for q in ppl.values() if q.branch_no == p.branch_no and q.is_descendant) - 1
         thirteen.append(c)
     founders = [card(p, user, g) for p in ppl.values() if p.slug in ("ukkubanda", "lokumenike", "mudalihami")]

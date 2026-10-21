@@ -11,6 +11,7 @@ import { nm, useLang, years } from '../../lib/i18n';
 import { useApi, useLayout, useTitle } from '../../lib/hooks';
 import { mediaUrl } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import MembersOnlyScreen, { isMembersOnly } from '../../components/MembersOnly';
 
 export default function Person() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -18,7 +19,8 @@ export default function Person() {
   const { user } = useAuth();
   const { wide } = useLayout();
   const { data: p, error } = useApi<any>(`/api/people/${slug}`);
-  useTitle(p ? nm(p, lang) : t('tree'));
+  useTitle(p ? nm(p, lang) : isMembersOnly(error) ? t('membersOnly') : t('tree'));
+  if (isMembersOnly(error)) return <MembersOnlyScreen />;
   if (error) return <Screen><ErrorBox msg={error} /></Screen>;
   if (!p) return <Screen><Loading /></Screen>;
   const bc = branchColor(p.branch_no);
