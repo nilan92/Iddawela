@@ -34,8 +34,8 @@ function Brand() {
       <Pressable accessibilityRole="link" accessibilityLabel="Iddawela Foundation home" style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         <Lotus size={30} />
         <View>
-          <Text style={{ fontFamily: F.display, fontSize: 22, color: C.parchment, fontWeight: '600', letterSpacing: 0.3, lineHeight: 24 }}>{lang === 'si' ? 'ඉද්දවෙල' : 'Iddawela'}</Text>
-          <Text style={{ fontFamily: F.body, fontSize: 10.5, color: C.goldSoft, letterSpacing: 2.4, textTransform: 'uppercase' }}>{lang === 'si' ? 'පදනම' : 'Foundation'}</Text>
+          <Text style={{ fontFamily: F.display, fontSize: 22, color: C.parchment, fontWeight: '600', letterSpacing: 0.3, lineHeight: 24 }}>ඉද්දවෙල පදනම</Text>
+          <Text style={{ fontFamily: F.body, fontSize: 10.5, color: C.goldSoft, letterSpacing: 2.4, textTransform: 'uppercase' }}>Iddawela Foundation</Text>
         </View>
       </Pressable>
     </Link>

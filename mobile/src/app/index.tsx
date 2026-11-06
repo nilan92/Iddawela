@@ -66,6 +66,28 @@ export default function Home() {
         </View>
       </View>
 
+      {/* START HERE */}
+      <View style={{ backgroundColor: C.parchment }}>
+        <Container style={{ paddingVertical: wide ? 40 : 28, gap: 14 }}>
+          <Text style={{ fontFamily: F.display, fontSize: wide ? 30 : 24, color: C.ink, fontWeight: '600' }}>{lang === 'si' ? 'ඔබට අවශ්‍ය කුමක්ද?' : 'What would you like to do?'}</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+            {([
+              ['/tree', lang === 'si' ? 'ඥාතියෙකු සොයන්න' : 'Find a relative', lang === 'si' ? 'පවුල් ගසේ නමින් සොයන්න' : 'Search the family tree by name'],
+              ['/events', lang === 'si' ? 'ඉදිරි උත්සව' : 'See upcoming events', lang === 'si' ? 'දිනයන් සහ පැමිණීම තහවුරු කිරීම' : 'Dates, and confirm you are coming'],
+              ['/ask', lang === 'si' ? 'ප්‍රශ්නයක් අසන්න' : 'Ask a question', lang === 'si' ? 'පවුල ගැන ඕනෑම දෙයක්' : 'Anything about the family'],
+              [user ? '/me' : '/join', user ? (lang === 'si' ? 'මගේ පවුල' : 'My family page') : (lang === 'si' ? 'පවුලට එක්වන්න' : 'Join the family'), user ? (lang === 'si' ? 'ඔබේ විස්තර යාවත්කාලීන කරන්න' : 'Update your details') : (lang === 'si' ? 'ගිණුමක් සාදන්න' : 'Create your account')],
+            ] as [string, string, string][]).map(([h, a, b]) => (
+              <Link key={h} href={h as any} asChild>
+                <Pressable accessibilityRole="link" style={{ flexGrow: 1, flexBasis: wide ? 220 : '47%', minWidth: 140, backgroundColor: '#fff', borderRadius: 14, padding: 16, gap: 4, borderWidth: 1, borderColor: 'rgba(201,162,74,.5)' }}>
+                  <Text style={{ fontFamily: F.body, fontSize: 17, fontWeight: '700', color: C.ink }}>{a}</Text>
+                  <Text style={{ fontFamily: F.body, fontSize: 13.5, color: '#5b5240' }}>{b}</Text>
+                </Pressable>
+              </Link>
+            ))}
+          </View>
+        </Container>
+      </View>
+
       {/* STORY TEASER */}
       <Container style={{ paddingVertical: wide ? 96 : 60 }}>
         <View style={{ flexDirection: wide ? 'row' : 'column', gap: wide ? 64 : 32, alignItems: 'center' }}>

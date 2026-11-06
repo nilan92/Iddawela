@@ -25,7 +25,7 @@ export function useLayout() {
 
 export function useTitle(title?: string) {
   useEffect(() => {
-    if (Platform.OS === 'web' && title) document.title = title.includes('Iddawela') ? title : `${title} · Iddawela Foundation`;
+    if (Platform.OS === 'web' && title) document.title = title.includes('ඉද්දවෙල') ? title : `${title} · ඉද්දවෙල පදනම`;
   }, [title]);
 }
 
