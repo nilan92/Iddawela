@@ -19,3 +19,5 @@ SMTP_HOST = _env("SMTP_HOST"); SMTP_PORT = int(_env("SMTP_PORT", "587")); SMTP_U
 MAIL_FROM = _env("MAIL_FROM", "Iddawela Foundation <no-reply@iddawela.com>")
 MEDIA_DIR = DATA_DIR / "media"
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+
+FAMILY_PASSWORD = _env("FAMILY_PASSWORD")  # shared browse-only family password (no username); unset = disabled

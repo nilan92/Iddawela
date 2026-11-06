@@ -15,6 +15,7 @@ export default function Login() {
   const { signIn } = useAuth();
   const { next } = useLocalSearchParams<{ next?: string }>();
   const [id, setId] = useState(''); const [pw, setPw] = useState('');
+  const [fpw, setFpw] = useState('');
   const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false);
   useTitle(T('Sign in', 'ඇතුළු වන්න'));
   const submit = async () => {
@@ -27,9 +28,21 @@ export default function Login() {
     } catch (e: any) { setErr(e.message); }
     setBusy(false);
   };
+  const famLogin = async () => {
+    setErr(null); setBusy(true);
+    try {
+      const r = await api('/api/auth/family-login', { body: { password: fpw } });
+      signIn(r.token, r.user);
+      router.replace((typeof next === 'string' && next.startsWith('/') ? next : '/tree') as any);
+    } catch (e: any) { setErr(e.message); }
+    setBusy(false);
+  };
   return (
     <AuthShell kicker={T('Members', 'සාමාජිකයින්')} title={T('Welcome home', 'ආයුබෝවන්')}
       body={T('Sign in to see family details, add your household and RSVP to the Hamuwa.', 'පවුලේ විස්තර බැලීමට, ඔබේ පවුල එක් කිරීමට සහ හමුවට සහභාගී වීම දැනුම් දීමට ඇතුළු වන්න.')}>
+      <Field label={T('Family password (just browsing)', 'පවුලේ මුරපදය (බලන්න පමණි)')} value={fpw} onChangeText={setFpw} secure />
+      <Btn label={T('Enter', 'ඇතුළු වන්න')} onPress={famLogin} loading={busy} disabled={!fpw} />
+      <Small color={C.lacquer}>{T('Or sign in with your own account:', 'නැතහොත් ඔබේ ගිණුමෙන් ඇතුළු වන්න:')}</Small>
       {err ? <Notice tone="err">{err}</Notice> : null}
       <Field label={T('Email or phone', 'ඊමේල් හෝ දුරකථනය')} value={id} onChangeText={setId} autoComplete="username" placeholder="name@example.com / 07X XXX XXXX" />
       <Field label={T('Password', 'මුරපදය')} value={pw} onChangeText={setPw} secure autoComplete="current-password" />

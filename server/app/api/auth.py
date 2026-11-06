@@ -1,4 +1,4 @@
-import datetime as dt, re, smtplib, ssl
+import datetime as dt, secrets, re, smtplib, ssl
 from email.message import EmailMessage
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from .. import models as m
 from ..security import (hash_password, verify_password, make_token, current_user, rate_limit, new_reset_token, hash_reset)
-from ..config import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM, SITE_URL
+import hmac
+from ..config import FAMILY_PASSWORD, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM, SITE_URL
 from ..family import graph, card
 
 r = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -86,6 +87,23 @@ def login(body: LoginIn, request: Request, db: Session = Depends(get_db)):
         raise HTTPException(401, "Wrong email/phone or password")
     if u.status in ("disabled", "rejected"):
         raise HTTPException(403, "This account is not active. Contact the foundation.")
+    u.last_login_at = dt.datetime.now(dt.timezone.utc)
+    db.commit()
+    return {"token": make_token(u), "user": user_out(u, db)}
+
+class FamilyIn(BaseModel):
+    password: str
+
+@r.post("/family-login")
+def family_login(body: FamilyIn, request: Request, db: Session = Depends(get_db)):
+    rate_limit("fam:" + (request.client.host if request.client else "x"), 15, 900)
+    if not FAMILY_PASSWORD or not hmac.compare_digest(body.password.strip().encode(), FAMILY_PASSWORD.encode()):
+        raise HTTPException(401, "Wrong family password")
+    u = db.scalar(select(m.User).where(m.User.email == "family-guest@iddawela.local"))
+    if not u:
+        u = m.User(name="Family guest", email="family-guest@iddawela.local", password_hash=hash_password(secrets.token_urlsafe(24)),
+                   role="member", status="approved")
+        db.add(u); db.commit(); db.refresh(u)
     u.last_login_at = dt.datetime.now(dt.timezone.utc)
     db.commit()
     return {"token": make_token(u), "user": user_out(u, db)}
