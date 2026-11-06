@@ -56,7 +56,7 @@ def render(request: Request, path: str, title: str, desc: str, body: str, lang: 
     img = image or f"{SITE_URL}/og/default.jpg"
     if img.startswith("/"):
         img = SITE_URL + img
-    full_title = title if ORG_NAME in title or title.startswith("Iddawela") else f"{title} · Iddawela Foundation"
+    full_title = title if ORG_NAME in title or title.startswith("Iddawela") or title.startswith("ඉද්දවෙල") else f"{title} · ඉද්දවෙල පදනම"
     head = [
         f"<title>{E(full_title)}</title>",
         f"<meta name=\"description\" content=\"{E(desc[:300])}\">",
@@ -156,7 +156,7 @@ def _page_for(request: Request, path: str, db: Session):
                          if deceased(p) else f"<li>{S(ANON_EN, ANON_SI)}</li>") for p in sons) + "</ol>")
         ld = [org_ld(), {"@context": "https://schema.org", "@type": "WebSite", "url": SITE_URL + "/", "name": ORG_NAME, "inLanguage": ["en", "si"],
                          "potentialAction": {"@type": "SearchAction", "target": f"{SITE_URL}/tree?q={{search_term_string}}", "query-input": "required name=search_term_string"}}]
-        return render(request, "/", f"{ORG_NAME} · {ORG_SI}", DEFAULT_DESC[lang], body, lang, ld)
+        return render(request, "/", f"ඉද්දවෙල පදනම · Iddawela Foundation", DEFAULT_DESC[lang], body, lang, ld)
     if head == "story":
         pages = db.scalars(select(m.Page).where(m.Page.section == "heritage").order_by(m.Page.sort)).all()
         body = f"<h1>{S('Our story', 'අපේ කතාව')}</h1>" + "".join(
