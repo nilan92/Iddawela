@@ -1,0 +1,21 @@
+#!/bin/bash
+# Forced command for the GitHub Actions deploy key: reads a release tarball (web/ + server/) on stdin.
+set -euo pipefail
+T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
+tar -xzf - -C "$T"
+[ -f "$T/web/index.html" ] && [ -d "$T/server/app" ] || { echo "bad package" >&2; exit 1; }
+sudo rm -rf /opt/iddawela/web.prev && sudo cp -a /opt/iddawela/web /opt/iddawela/web.prev
+sudo rm -rf /opt/iddawela/app/server.prev && sudo cp -a /opt/iddawela/app/server /opt/iddawela/app/server.prev
+sudo rm -rf /opt/iddawela/web/* && sudo cp -a "$T/web/." /opt/iddawela/web/
+sudo rsync -a --exclude __pycache__ "$T/server/" /opt/iddawela/app/server/ 2>/dev/null || sudo cp -a "$T/server/." /opt/iddawela/app/server/
+sudo chown -R iddawela:iddawela /opt/iddawela/web /opt/iddawela/app/server
+sudo systemctl restart iddawela
+sleep 4
+code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8820/)
+if [ "$code" != 200 ]; then
+  echo "health check failed ($code), rolling back" >&2
+  sudo rm -rf /opt/iddawela/web/* && sudo cp -a /opt/iddawela/web.prev/. /opt/iddawela/web/
+  sudo rm -rf /opt/iddawela/app/server && sudo cp -a /opt/iddawela/app/server.prev /opt/iddawela/app/server
+  sudo systemctl restart iddawela; exit 1
+fi
+echo "deployed ok"

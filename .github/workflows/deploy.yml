@@ -1,0 +1,31 @@
+name: build-and-deploy
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm, cache-dependency-path: mobile/package-lock.json }
+      - name: Build web app
+        working-directory: mobile
+        run: |
+          npm ci
+          npx expo export --platform web
+          node scripts/postexport.mjs dist
+      - name: Package
+        run: |
+          mkdir -p pkg && cp -r mobile/dist pkg/web && cp -r server pkg/server
+          tar -czf release.tgz -C pkg .
+      - name: Deploy to server
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/id_deploy -o IdentitiesOnly=yes ubuntu@"$DEPLOY_HOST" < release.tgz
