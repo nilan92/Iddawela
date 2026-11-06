@@ -9,11 +9,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20, cache: npm, cache-dependency-path: mobile/package-lock.json }
+        with: { node-version: 20 }
       - name: Build web app
         working-directory: mobile
         run: |
-          npm ci
+          npm install --no-audit --no-fund
           npx expo export --platform web
           node scripts/postexport.mjs dist
       - name: Package
