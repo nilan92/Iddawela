@@ -46,7 +46,7 @@ export default function Me() {
       </PageHero>
       <Container style={{ paddingVertical: wide ? 56 : 32, gap: 24 }}>
         <View style={{ flexDirection: wide ? 'row' : 'column', gap: 20, alignItems: 'flex-start' }}>
-          <Card style={{ flex: 1, width: wide ? undefined : '100%', gap: 14, padding: 24 }}>
+          <Card style={{ ...(wide ? { flex: 1 } : { width: '100%' }), gap: 14, padding: 24 }}>
             <H3>{T('You on the tree', 'ගසේ ඔබ')}</H3>
             {user.person ? (
               <>
@@ -65,7 +65,7 @@ export default function Me() {
               </>
             )}
           </Card>
-          <Card style={{ flex: 1, width: wide ? undefined : '100%', gap: 12, padding: 24 }}>
+          <Card style={{ ...(wide ? { flex: 1 } : { width: '100%' }), gap: 12, padding: 24 }}>
             <H3>{T('Account', 'ගිණුම')}</H3>
             <Small>{[user.email, user.phone].filter(Boolean).join(' · ')}</Small>
             <Small>{T('Role', 'භූමිකාව')}: {user.role.replace('_', ' ')} · {T('Status', 'තත්ත්වය')}: {user.status}</Small>

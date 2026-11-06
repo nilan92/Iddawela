@@ -147,7 +147,7 @@ export default function TreeScreen() {
         </Pressable>
       ) : null}
       {me && !selected ? (
-        <View style={{ position: 'absolute', left: 14, bottom: 18 }}>
+        <View style={{ position: 'absolute', left: 14, bottom: 84 }}>
           <Btn small label={lang === 'si' ? 'මාව පෙන්වන්න' : 'Show me'} onPress={() => focus(me)} />
         </View>
       ) : null}

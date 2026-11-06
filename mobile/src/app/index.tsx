@@ -141,7 +141,7 @@ export default function Home() {
       {/* EVENTS + REMEMBERING */}
       <Container style={{ paddingVertical: wide ? 88 : 56 }}>
         <View style={{ flexDirection: wide ? 'row' : 'column', gap: 28 }}>
-          <View style={{ flex: 1.2, gap: 16 }}>
+          <View style={{ ...(wide ? { flex: 1.2 } : {}), gap: 16 }}>
             <Kicker>{t('upcoming')}</Kicker>
             {data?.upcoming?.map((e: any) => (
               <Card key={e.id} href={`/events/${e.slug}`} dark style={{ padding: 26, gap: 12 }}>
@@ -168,7 +168,7 @@ export default function Home() {
               </View>
             ) : null}
           </View>
-          <View style={{ flex: 1, gap: 16 }}>
+          <View style={{ ...(wide ? { flex: 1 } : {}), gap: 16 }}>
             <Kicker>{t('onThisDay')}</Kicker>
             <Card style={{ gap: 4, padding: 8 }}>
               {(data?.onthisday?.today || []).concat(data?.onthisday?.this_year || []).slice(0, 7).map((x: any, i: number) => (
@@ -221,7 +221,7 @@ export default function Home() {
             <Search size={18} color={C.stone} />
             <TextInput value={q} onChangeText={setQ} placeholder={t('askPlaceholder')} placeholderTextColor={C.mute} onSubmitEditing={() => router.push(`/ask?q=${encodeURIComponent(q)}` as any)}
               style={{ flex: 1, fontFamily: F.body, fontSize: 16, paddingHorizontal: 12, paddingVertical: 10, color: C.ink, outlineStyle: 'none' } as any} accessibilityLabel={t('ask')} />
-            <Btn small label={t('ask')} onPress={() => router.push(`/ask?q=${encodeURIComponent(q)}` as any)} />
+            <Btn small label={wide ? t('ask') : (lang === 'si' ? 'අසන්න' : 'Ask')} onPress={() => router.push(`/ask?q=${encodeURIComponent(q)}` as any)} />
           </View>
         </View>
       </Container>
